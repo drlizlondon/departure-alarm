@@ -161,6 +161,36 @@ input { cursor: text; }
 }
 .grace-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.3); }
 
+.picker-header {
+  text-align: center; font-size: 11px; font-weight: 1000; letter-spacing: .12em;
+  text-transform: uppercase; color: #ffd6e9; margin-bottom: 8px;
+}
+.status-countdown-card {
+  margin: 12px 0 10px; padding: 14px 10px;
+  background: rgba(0,0,0,.32); border: 2px solid rgba(255,216,76,.4);
+  border-radius: 20px; text-align: center;
+}
+.status-cd-title {
+  font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+  color: #f2c0dc; display: block; margin-bottom: 4px;
+}
+.status-countdown {
+  font-size: clamp(44px, 14vw, 60px); font-weight: 1000;
+  letter-spacing: -.05em; line-height: 1; color: var(--yellow);
+  text-shadow: 0 4px 0 #703800, 0 0 18px rgba(255,216,76,.45);
+}
+.status-points-now {
+  font-size: 14px; font-weight: 900; color: #fff; margin-top: 6px;
+}
+.btn-open-ring {
+  width: 100%; border: 1.5px solid rgba(255,255,255,.32); border-radius: 16px;
+  padding: 12px; background: rgba(255,255,255,.16); color: #fff;
+  font-size: 14px; font-weight: 900; cursor: pointer; margin-bottom: 10px;
+  box-shadow: 0 3px 0 rgba(0,0,0,.3);
+  transition: transform .08s, box-shadow .08s;
+}
+.btn-open-ring:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.3); }
+
 .helper { text-align: center; color: var(--muted); font-weight: 760; line-height: 1.4; margin: 4px 4px 12px; font-size: 14px; }
 .helper strong { color: var(--yellow); }
 
@@ -429,16 +459,13 @@ input { cursor: text; }
 
         <div class="or-divider">or pick exact time</div>
 
-        <!-- Time card: auto-filled to now+30, AM/PM auto-selected, 1-min steps -->
+        <!-- Time card: 24-hour clock (no AM/PM) -->
         <div class="time-card">
+          <div class="picker-header">24-HOUR CLOCK (NO AM/PM)</div>
           <div class="picker-row">
-            <div class="picker-box"><label for="hourSelect">Hour</label><select id="hourSelect"></select></div>
+            <div class="picker-box"><label for="hourSelect">Hour (00–23)</label><select id="hourSelect"></select></div>
             <div class="colon">:</div>
-            <div class="picker-box"><label for="minuteSelect">Min</label><select id="minuteSelect"></select></div>
-          </div>
-          <div class="ampm" role="group" aria-label="AM or PM">
-            <button id="amBtn" type="button">AM</button>
-            <button id="pmBtn" type="button">PM</button>
+            <div class="picker-box"><label for="minuteSelect">Minute (00–59)</label><select id="minuteSelect"></select></div>
           </div>
         </div>
 
@@ -467,7 +494,16 @@ input { cursor: text; }
           <div id="statusTime" class="status-time">10:00 AM</div>
           <!-- Shows "Tomorrow" if alarm crosses midnight -->
           <div id="statusDay" class="status-day" hidden></div>
-          <div id="statusBuzz" class="status-buzz">Buzzer at 09:55 AM</div>
+          <div id="statusBuzz" class="status-buzz">Buzzer at 09:55</div>
+
+          <!-- Live Countdown Card right in Set View -->
+          <div class="status-countdown-card">
+            <span class="status-cd-title">TIME REMAINING</span>
+            <div id="statusCountdown" class="status-countdown">--:--</div>
+            <div id="statusPointsNow" class="status-points-now">+80 coins available</div>
+          </div>
+          <button id="openRingBtn" class="btn-open-ring" type="button">⚡ Fullscreen Countdown Ring</button>
+
           <!-- Before-I-leave reminder on status card -->
           <div id="statusBefore" class="status-before" hidden>
             <span class="lbl">Before you leave</span>
@@ -722,17 +758,12 @@ function currentMilestone() { return [...MILESTONES].reverse().find(m => state.c
 function nextMilestone()    { return MILESTONES.find(m => state.coins < m.coins) || null; }
 
 // ═══════════════════════════════════════════════════════════════════
-//  TIME HELPERS
+//  TIME HELPERS (24-Hour Clock)
 // ═══════════════════════════════════════════════════════════════════
-function to24(hour, period) {
-  hour = Number(hour);
-  if (period === 'AM') return hour === 12 ? 0 : hour;
-  return hour === 12 ? 12 : hour + 12;
-}
-
-function format12(date) {
-  return new Intl.DateTimeFormat('en-GB', { hour:'numeric', minute:'2-digit', hour12:true })
-    .format(date).replace('am','AM').replace('pm','PM');
+function format24(date) {
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
 }
 
 function formatDay(date) {
@@ -743,26 +774,24 @@ function formatDay(date) {
   return date.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
 }
 
-// Build a Date from 12-hour picker values; pushes to tomorrow if in the past
-function makeTargetFromPicker(hour, minute, period) {
-  const d = new Date(), h = to24(hour, period);
-  d.setHours(h, Number(minute), 0, 0);
+function makeTargetFrom24(hour, minute) {
+  const d = new Date();
+  d.setHours(Number(hour), Number(minute), 0, 0);
   if (d <= new Date()) d.setDate(d.getDate() + 1);
   return d;
 }
 
-// Build a Date N minutes from now (quick-set)
 function makeTargetFromMins(mins) {
   return new Date(Date.now() + mins * 60000);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  SELECTORS — 1-min increments; auto-filled to now+30; auto AM/PM
+//  SELECTORS — 24-hr clock (00–23h, 00–59m), pre-filled to now+30
 // ═══════════════════════════════════════════════════════════════════
-let ampm = '';
-
 function initSelectors() {
-  for (let h = 1; h <= 12; h++) {
+  $('hourSelect').innerHTML = '';
+  $('minuteSelect').innerHTML = '';
+  for (let h = 0; h < 24; h++) {
     $('hourSelect').insertAdjacentHTML('beforeend',
       `<option value="${h}">${String(h).padStart(2,'0')}</option>`);
   }
@@ -770,19 +799,9 @@ function initSelectors() {
     $('minuteSelect').insertAdjacentHTML('beforeend',
       `<option value="${m}">${String(m).padStart(2,'0')}</option>`);
   }
-  // Pre-fill to current time + 30 min, auto-select AM/PM
   const def = new Date(Date.now() + 30 * 60000);
-  const h = def.getHours(), m = def.getMinutes();
-  const p = h >= 12 ? 'PM' : 'AM';
-  $('hourSelect').value = h % 12 || 12;
-  $('minuteSelect').value = m;
-  selectPeriod(p);
-}
-
-function selectPeriod(p) {
-  ampm = p;
-  $('amBtn').classList.toggle('active', p === 'AM');
-  $('pmBtn').classList.toggle('active', p === 'PM');
+  $('hourSelect').value = def.getHours();
+  $('minuteSelect').value = def.getMinutes();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -825,7 +844,7 @@ function scheduleNotifications(target) {
   if (warnMs > now) {
     notifTimeouts.push(setTimeout(() =>
       fireNotif('⏰ 5 minutes to go!',
-        `Leave by ${format12(target)} — open the app and tap I\'m Out when you leave.`,
+        `Leave by ${format24(target)} — open the app and tap I\'m Out when you leave.`,
         'dep-warn'), warnMs - now));
   }
   if (targetMs > now) {
@@ -883,10 +902,10 @@ function render() {
     const targetMs  = target.getTime();
     const dayLabel  = formatDay(target);
 
-    $('statusTime').textContent = format12(target);
+    $('statusTime').textContent = format24(target);
     $('statusDay').textContent  = dayLabel;
     $('statusDay').hidden       = !dayLabel;
-    $('statusBuzz').textContent = `Buzzer at ${format12(new Date(targetMs - 5*60000))}`;
+    $('statusBuzz').textContent = `Buzzer at ${format24(new Date(targetMs - 5*60000))}`;
 
     // Before-I-leave note
     if (state.alarm.before) {
@@ -900,7 +919,7 @@ function render() {
     $('earlyOutBtn').textContent = earlyBtnLabel(targetMs);
 
     // Alarm bar on journey/stats
-    $('abTime').textContent = format12(target);
+    $('abTime').textContent = format24(target);
     updateAlarmBar();
   }
 
@@ -955,9 +974,12 @@ async function commitAlarm(target) {
   playSetConfirmation();
   launchMini();
 
+  const totalSec = Math.max(300, Math.round((target.getTime() - Date.now()) / 1000));
+
   state.alarm = {
     id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
     target: target.toISOString(),
+    totalSec,
     before,
     warningPlayed: false,
     targetPlayed:  false,
@@ -966,10 +988,19 @@ async function commitAlarm(target) {
   render();
 
   const dayLabel = formatDay(target);
-  toast(`✓ Alarm set for ${format12(target)}${dayLabel ? ' (' + dayLabel + ')' : ''}`);
+  toast(`✓ Departure set for ${format24(target)}${dayLabel ? ' (' + dayLabel + ')' : ''}`);
 
   // Request notification permission contextually (non-blocking)
   ensureNotifications(target);
+
+  // Directly show the countdown challenge screen so user sees countdown immediately!
+  openChallenge();
+}
+
+function setAlarm() {
+  const h = $('hourSelect').value, m = $('minuteSelect').value;
+  if (h === '' || m === '') { toast('Choose an hour and minute.'); return; }
+  commitAlarm(makeTargetFrom24(h, m));
 }
 
 function setAlarm() {
@@ -988,6 +1019,29 @@ function cancelAlarm() { state.alarm = null; clearNotifTimeouts(); save(); rende
 // ═══════════════════════════════════════════════════════════════════
 //  CHALLENGE SCREEN
 // ═══════════════════════════════════════════════════════════════════
+function updateStatusCardCountdown() {
+  if (!state.alarm) return;
+  const targetMs = new Date(state.alarm.target).getTime();
+  const nowMs = Date.now();
+  const secs = Math.ceil((targetMs - nowMs) / 1000);
+  const abs = Math.abs(secs);
+  const hh = Math.floor(abs / 3600);
+  const mm = String(Math.floor((abs % 3600) / 60)).padStart(2, '0');
+  const ss = String(abs % 60).padStart(2, '0');
+  const timeStr = hh > 0 ? `${String(hh).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
+
+  const elCd = $('statusCountdown');
+  if (elCd) {
+    elCd.textContent = secs >= 0 ? timeStr : `−${timeStr}`;
+    elCd.style.color = secs >= 0 ? 'var(--yellow)' : '#ff5a80';
+  }
+  const elPts = $('statusPointsNow');
+  if (elPts) {
+    const pts = reward(targetMs, nowMs);
+    elPts.textContent = secs >= 0 ? `+${pts} coins available right now` : `Points dropping · +${pts} coins left`;
+  }
+}
+
 function updateChallenge() {
   if (!state.alarm) return;
 
@@ -999,18 +1053,25 @@ function updateChallenge() {
   const pts      = reward(targetMs, nowMs);
   const before   = secs >= 0;
 
+  const total = state.alarm.totalSec || 300;
+  const progress = before ? Math.max(0, Math.min(100, (secs / total) * 100)) : 0;
+
+  const hh = Math.floor(abs / 3600);
+  const mm = String(Math.floor((abs % 3600) / 60)).padStart(2, '0');
+  const ss = String(abs % 60).padStart(2, '0');
+  const displayTime = hh > 0 ? `${String(hh).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
+
   $('ringLabel').textContent  = before ? 'Time left · Points dropping!' : 'GO NOW — points diminishing!';
-  $('countdown').textContent  = `${String(Math.floor(abs/60)).padStart(2,'0')}:${String(abs%60).padStart(2,'0')}`;
+  $('countdown').textContent  = displayTime;
   $('rewardNow').textContent  = `+${pts} coins`;
   $('phasePill').textContent  = coinBonusLabel(targetMs, nowMs);
 
-  const progress = before ? Math.max(0, Math.min(100, secs / 300 * 100)) : 0;
   $('ring').style.setProperty('--progress', `${progress}%`);
   // Past departure: ring pulses red urgently (not empty/broken)
   $('ring').classList.toggle('past', !before);
 
   $('leaveBy').textContent = before
-    ? `Leave by ${format12(target)}`
+    ? `Leave by ${format24(target)}`
     : `Go! Points diminish each minute · Available: +${pts} coins`;
 
   // Before-I-leave reminder on challenge screen
@@ -1225,6 +1286,7 @@ function alarmTick() {
   // Update early-out label live on home screen
   if ($('home').classList.contains('active') && !$('setView').hidden) {
     $('earlyOutBtn').textContent = earlyBtnLabel(target.getTime());
+    updateStatusCardCountdown();
   }
 
   // Update alarm bar on journey/stats
@@ -1318,9 +1380,8 @@ function toast(msg) {
 // ═══════════════════════════════════════════════════════════════════
 //  EVENT LISTENERS
 // ═══════════════════════════════════════════════════════════════════
-$('amBtn').onclick = () => selectPeriod('AM');
-$('pmBtn').onclick = () => selectPeriod('PM');
 $('setAlarmBtn').onclick  = setAlarm;
+$('openRingBtn').onclick   = () => openChallenge();
 $('earlyOutBtn').onclick  = complete;
 $('editBtn').onclick      = editAlarm;
 $('setGraceBtn').onclick  = () => addGraceMinutes(3);
