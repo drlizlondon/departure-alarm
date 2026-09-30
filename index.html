@@ -1,0 +1,1381 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5a0b77">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Departure">
+<meta name="description" content="The gamified, forgiving departure timer built for the ADHD brain. Points diminish as time passes to get you out the door early.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Departure Alarm — Leave on time without the panic">
+<meta property="og:description" content="The gamified, forgiving departure timer built for the ADHD brain. Points diminish as time passes to get you out the door early.">
+<meta property="og:url" content="https://drlizlondon.github.io/departure-alarm/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Departure Alarm — Leave on time without the panic">
+<meta name="twitter:description" content="The gamified, forgiving departure timer built for the ADHD brain. Points diminish as time passes to get you out the door early.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<title>Departure Alarm — Leave on time without the panic</title>
+<style>
+:root {
+  font-family: Inter, ui-rounded, "SF Pro Rounded", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ink: #fff; --muted: #ead8f3; --pink: #ff2f9b; --purple: #7a19c9;
+  --deep: #24002f; --yellow: #ffd84c; --green: #56ef49;
+  --line: rgba(255,255,255,.18); --gold: #ffb830;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: #1c0027; }
+body {
+  color: var(--ink);
+  background: radial-gradient(circle at 50% -8%, rgba(255,65,170,.48), transparent 35%),
+              linear-gradient(180deg, #4a005b 0%, #22002d 64%, #16001e 100%);
+  overflow-x: hidden;
+}
+button, input, select { font: inherit; cursor: pointer; }
+input { cursor: text; }
+
+.app {
+  width: min(100%, 430px);
+  min-height: 100svh;
+  margin: auto;
+  /* bottom padding leaves room for the persistent alarm bar */
+  padding: max(14px, env(safe-area-inset-top)) 14px max(82px, calc(22px + env(safe-area-inset-bottom)));
+  position: relative;
+}
+
+/* ── Screens ─────────────────────────────────────────────────────── */
+.screen { display: none; flex-direction: column; min-height: 100%; }
+.screen.active { display: flex; }
+
+/* ── Topbar ──────────────────────────────────────────────────────── */
+.topbar { height: 50px; display: flex; align-items: center; justify-content: space-between; }
+.round-btn, .coin-pill {
+  border: 1px solid rgba(255,255,255,.22);
+  background: linear-gradient(180deg, #a534df, #641091);
+  color: #fff;
+  box-shadow: 0 5px 0 #36004f, 0 10px 18px rgba(0,0,0,.26);
+}
+.round-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 900;
+}
+.round-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #36004f; }
+.coin-pill {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 13px; border-radius: 999px; font-weight: 1000;
+}
+.coin {
+  width: 23px; height: 23px; border-radius: 50%;
+  display: grid; place-items: center; color: #8a4b00;
+  background: radial-gradient(circle at 34% 27%, #fff8ae 0 8%, #ffd83e 10% 47%, #f3a600 49% 74%, #ad6100 76% 100%);
+  border: 2px solid #fff083;
+  box-shadow: inset 0 -3px 0 rgba(110,53,0,.35), 0 3px 7px rgba(0,0,0,.25);
+}
+
+/* ── Home – Setup view ───────────────────────────────────────────── */
+.home-main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 2px 0 4px; }
+.question { text-align: center; margin: 0 0 4px; font-size: clamp(24px,7vw,30px); line-height: 1.02; font-weight: 1000; letter-spacing: -.03em; text-shadow: 0 4px 0 rgba(0,0,0,.22); }
+.subcopy { text-align: center; color: var(--muted); margin: 0 0 14px; font-weight: 750; font-size: 14px; }
+
+/* Quick-set pills */
+.quick-label { text-align: center; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 9px; }
+.quick-pills { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; margin-bottom: 14px; }
+.quick-pill {
+  border: 1.5px solid rgba(255,255,255,.28);
+  border-radius: 999px; padding: 11px 18px;
+  color: #fff; font-weight: 900; font-size: 15px;
+  background: linear-gradient(180deg, rgba(180,60,255,.35), rgba(90,10,140,.5));
+  box-shadow: 0 5px 0 rgba(40,0,70,.8), 0 10px 20px rgba(0,0,0,.22);
+  transition: transform .08s, box-shadow .08s;
+}
+.quick-pill:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(40,0,70,.8); }
+
+.or-divider {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--muted); font-size: 12px; font-weight: 800; margin: 0 0 12px;
+}
+.or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.12); }
+
+/* Time card */
+.time-card {
+  padding: 14px; border-radius: 28px;
+  background: linear-gradient(145deg, #ff5bb2, #f21f91 56%, #bd0866);
+  border: 2px solid rgba(255,255,255,.38);
+  box-shadow: 0 10px 0 #790044, 0 20px 36px rgba(0,0,0,.36), inset 0 4px 0 rgba(255,255,255,.33);
+  margin-bottom: 10px;
+}
+.picker-row { display: grid; grid-template-columns: 1fr 22px 1fr; align-items: center; gap: 6px; }
+.picker-box { background: rgba(91,0,55,.28); border-radius: 18px; padding: 8px; box-shadow: inset 0 5px 12px rgba(60,0,35,.25), 0 2px 0 rgba(255,255,255,.18); }
+.picker-box label { display: block; text-align: center; font-size: 11px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; color: #ffd6e9; margin-bottom: 2px; }
+.picker-box select { width: 100%; border: 0; outline: 0; background: transparent; color: #fff; text-align: center; text-align-last: center; font-size: clamp(44px,14vw,60px); font-weight: 1000; line-height: 1; appearance: none; }
+.picker-box select option { color: #111; }
+.colon { text-align: center; font-size: 48px; font-weight: 1000; margin-top: 14px; }
+.ampm { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.ampm button { border: 1px solid rgba(255,255,255,.28); border-radius: 15px; padding: 11px; background: rgba(83,0,64,.3); color: #fff; font-weight: 1000; box-shadow: inset 0 2px 0 rgba(255,255,255,.15); }
+.ampm button.active { background: linear-gradient(180deg, #fff36d, #ffc62c); color: #6e3800; box-shadow: 0 5px 0 #ae6200, inset 0 2px 0 #fff9a3; }
+
+/* Before-I-leave input */
+.before-input {
+  width: 100%; border: 0; outline: 0;
+  border-radius: 16px; padding: 12px 14px;
+  background: rgba(255,255,255,.10);
+  border: 1.5px solid rgba(255,255,255,.18);
+  color: #fff; font-size: 15px; font-weight: 700;
+  margin-bottom: 6px;
+}
+.before-input::placeholder { color: rgba(255,214,233,.55); }
+
+/* Quick item chips */
+.chip-row {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; justify-content: center;
+}
+.item-chip {
+  border: 1.5px solid rgba(255,255,255,.2);
+  border-radius: 999px; padding: 6px 11px;
+  background: rgba(255,255,255,.09); color: var(--muted);
+  font-size: 13px; font-weight: 800; cursor: pointer;
+  transition: all .12s ease;
+}
+.item-chip:active { transform: scale(0.96); }
+.item-chip.active {
+  background: linear-gradient(180deg, #ffd84c, #ff9e2b);
+  color: #4a2200; border-color: #fff19e;
+  box-shadow: 0 3px 0 #9f5400;
+}
+
+/* Grace buffer buttons */
+.grace-row {
+  display: flex; gap: 8px; margin-top: 12px; width: 100%; justify-content: center;
+}
+.grace-btn {
+  flex: 1; border: 1.5px solid rgba(255,255,255,.28);
+  border-radius: 16px; padding: 11px 8px;
+  background: rgba(255,255,255,.14); color: #fff;
+  font-size: 13px; font-weight: 900;
+  box-shadow: 0 4px 0 rgba(0,0,0,.3);
+  transition: transform .08s, box-shadow .08s;
+  cursor: pointer;
+}
+.grace-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.3); }
+
+.helper { text-align: center; color: var(--muted); font-weight: 760; line-height: 1.4; margin: 4px 4px 12px; font-size: 14px; }
+.helper strong { color: var(--yellow); }
+
+/* Buttons */
+.btn-3d {
+  width: 100%; border: 2px solid rgba(255,255,255,.4); border-radius: 22px;
+  padding: 17px 18px; color: #fff; font-weight: 1000; font-size: 20px;
+  text-transform: uppercase; cursor: pointer;
+  background: linear-gradient(180deg, #ff58b3, #ff1c91 54%, #ca076a);
+  box-shadow: 0 9px 0 #850047, 0 17px 28px rgba(0,0,0,.34), inset 0 3px 0 rgba(255,255,255,.43);
+  text-shadow: 0 3px 0 rgba(74,0,39,.45);
+  transition: transform .08s, box-shadow .08s;
+}
+.btn-3d:active { transform: translateY(7px); box-shadow: 0 2px 0 #850047, 0 7px 12px rgba(0,0,0,.3); }
+.btn-3d:disabled { opacity: .5; pointer-events: none; }
+
+.btn-green {
+  font-size: 22px; padding: 19px;
+  background: linear-gradient(180deg, #7aff5e, #34df30 55%, #12931d);
+  box-shadow: 0 10px 0 #087317, 0 0 28px rgba(83,255,63,.36), 0 20px 32px rgba(0,0,0,.38), inset 0 4px 0 rgba(255,255,255,.5);
+  text-shadow: 0 4px 0 rgba(0,88,17,.5);
+}
+
+.mini-btn {
+  flex: 1; border: 1px solid var(--line); border-radius: 15px; padding: 11px;
+  color: #fff; font-weight: 850; font-size: 14px;
+  background: rgba(70,6,96,.82); box-shadow: 0 4px 0 #260034;
+}
+.btn-row { display: flex; gap: 9px; margin-top: 8px; }
+
+/* Home – Set view (alarm active) */
+.status-card {
+  margin-top: 10px; padding: 16px; border-radius: 22px;
+  background: linear-gradient(145deg, rgba(116,27,158,.97), rgba(56,5,78,.97));
+  border: 1px solid var(--line);
+  box-shadow: 0 7px 0 #280038, inset 0 2px 0 rgba(255,255,255,.13);
+  text-align: center;
+}
+.status-check { display: inline-flex; align-items: center; gap: 7px; color: #c8ffb9; font-weight: 1000; font-size: 14px; }
+.status-time { font-size: 36px; font-weight: 1000; margin: 4px 0 0; }
+.status-day { font-size: 13px; color: var(--yellow); font-weight: 900; margin: 0 0 2px; }
+.status-buzz { color: var(--muted); font-weight: 760; margin: 0 0 10px; font-size: 14px; }
+.status-before {
+  text-align: left; margin: 8px 0 10px; padding: 9px 12px;
+  background: rgba(255,216,76,.1); border: 1px solid rgba(255,216,76,.25);
+  border-radius: 12px; font-size: 14px; font-weight: 800;
+}
+.status-before .lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 3px; }
+.status-before .txt { color: var(--yellow); }
+.early-out { margin-top: 10px; font-size: 16px; padding: 15px 10px; line-height: 1.2; }
+
+/* Journey card */
+.journey-card {
+  margin-top: 12px; padding: 12px 14px; border-radius: 20px;
+  background: linear-gradient(145deg, rgba(117,22,159,.94), rgba(57,4,80,.94));
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 0 #280038, inset 0 2px 0 rgba(255,255,255,.13);
+}
+.journey-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.eyebrow { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #f4c8e5; font-weight: 1000; }
+.journey-name { font-size: 18px; font-weight: 1000; margin-top: 2px; }
+.journey-icon {
+  width: 54px; height: 54px; border-radius: 15px;
+  display: grid; place-items: center; font-size: 28px;
+  background: linear-gradient(145deg, rgba(100,40,160,.6), rgba(60,10,100,.7));
+  border: 1.5px solid rgba(255,255,255,.15);
+  box-shadow: 0 5px 0 rgba(30,0,50,.7);
+  /* icon is shown but dimmed/locked — ADHD anticipation, not mystery */
+  filter: saturate(.5) brightness(.7);
+}
+.track { height: 9px; margin: 10px 0 6px; border-radius: 999px; background: rgba(28,0,42,.55); overflow: hidden; }
+.fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ffd84a, #ff8f32, #ff3fa3); transition: width .6s ease; }
+.meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-weight: 800; }
+
+/* ── Challenge screen ─────────────────────────────────────────────── */
+.challenge-screen { justify-content: flex-start; text-align: center; gap: 0; }
+.go-title { font-size: clamp(46px,13vw,64px); line-height: .9; margin: 6px 0 4px; font-weight: 1000; text-shadow: 0 5px 0 #8d064e, 0 0 18px rgba(255,82,173,.6); }
+.leave-by { font-size: 17px; font-weight: 850; margin: 0 0 4px; }
+.phase-pill {
+  display: inline-flex; align-self: center; margin: 0 auto 0;
+  padding: 7px 16px; border-radius: 999px;
+  background: rgba(255,216,76,.16); border: 1px solid rgba(255,235,145,.4);
+  color: #fff3a5; font-weight: 1000; letter-spacing: .03em; font-size: 13px;
+}
+.ring {
+  width: min(72vw, 290px); aspect-ratio: 1; margin: 14px auto 14px;
+  border-radius: 50%; padding: 20px;
+  background: conic-gradient(var(--yellow) var(--progress, 100%), #e7098a 0);
+  box-shadow: 0 0 34px rgba(255,37,144,.52), 0 10px 0 #650047, 0 20px 35px rgba(0,0,0,.4);
+  transition: background .3s;
+}
+/* When past departure time: ring pulses red to signal urgency without shame */
+.ring.past {
+  background: conic-gradient(#ff3a6e 100%, #ff3a6e 0);
+  animation: urgentPulse 1s ease-in-out infinite;
+}
+@keyframes urgentPulse { 50% { box-shadow: 0 0 55px rgba(255,58,110,.9), 0 10px 0 #650047; } }
+.ring-inner {
+  width: 100%; height: 100%; border-radius: 50%;
+  display: grid; place-content: center;
+  background: radial-gradient(circle at 50% 28%, #bc1877, #650040 72%);
+  box-shadow: inset 0 8px 18px rgba(255,97,186,.22), inset 0 -12px 20px rgba(42,0,33,.4);
+}
+.ring-label { font-size: 12px; color: #f2c0dc; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.countdown { font-size: clamp(58px,17vw,78px); font-weight: 1000; letter-spacing: -.07em; line-height: .96; text-shadow: 0 5px 0 #4b002f; }
+.reward-now { color: var(--yellow); font-size: 20px; font-weight: 1000; }
+
+.challenge-before {
+  margin: 0 auto 12px; padding: 10px 16px;
+  background: rgba(255,216,76,.1); border: 1px solid rgba(255,216,76,.2);
+  border-radius: 14px; max-width: 300px; text-align: left;
+}
+.challenge-before .lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 3px; }
+.challenge-before .txt { font-size: 15px; font-weight: 800; color: var(--yellow); }
+
+/* ── Result screen ────────────────────────────────────────────────── */
+.result { justify-content: center; text-align: center; }
+.result-kicker { margin: 0 0 4px; font-size: 18px; font-weight: 800; color: var(--muted); }
+.result-tier { font-size: clamp(38px,11vw,56px); line-height: .9; font-weight: 1000; color: var(--yellow); text-shadow: 0 5px 0 #b35f00; margin-bottom: 10px; }
+.result-msg { font-size: 15px; font-weight: 800; color: var(--muted); line-height: 1.45; margin: 0 0 18px; padding: 0 8px; }
+.reward-box {
+  padding: 17px; border-radius: 24px; margin-bottom: 14px;
+  background: linear-gradient(180deg, #ff3da2, #cf086f);
+  border: 2px solid rgba(255,255,255,.35);
+  box-shadow: 0 9px 0 #840046, 0 17px 31px rgba(0,0,0,.4), inset 0 3px 0 rgba(255,255,255,.34);
+}
+.reward-box .lbl { font-size: 14px; font-weight: 800; display: block; }
+.reward-box .coins { display: block; font-size: 54px; color: var(--yellow); line-height: 1.1; }
+.reward-box .bonus-note { display: block; font-size: 12px; color: rgba(255,255,255,.7); margin-top: 3px; }
+.result-next { font-weight: 800; color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+
+/* ── Journey & Stats pages ───────────────────────────────────────── */
+.page { padding-bottom: 16px; }
+.page-title { font-size: 30px; font-weight: 1000; margin: 10px 0 14px; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.metric { padding: 14px; border-radius: 18px; background: rgba(92,13,124,.8); border: 1px solid var(--line); }
+.metric span { display: block; color: var(--muted); font-size: 12px; font-weight: 800; }
+.metric strong { font-size: 24px; font-weight: 1000; }
+
+/* Last 7 departures bar chart */
+.history-title { font-size: 17px; font-weight: 1000; margin: 0 0 10px; }
+.history-bars { display: flex; align-items: flex-end; gap: 6px; height: 80px; margin-bottom: 8px; }
+.h-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.h-bar { width: 100%; border-radius: 6px 6px 0 0; min-height: 6px; }
+.h-bar.early  { background: var(--green); }
+.h-bar.ontime { background: var(--yellow); }
+.h-bar.late   { background: #ff8f32; }
+.h-emoji { font-size: 15px; }
+.history-legend { display: flex; gap: 14px; font-size: 12px; font-weight: 800; color: var(--muted); margin-bottom: 16px; }
+.history-legend .early  { color: var(--green); }
+.history-legend .ontime { color: var(--yellow); }
+.history-legend .late   { color: #ff8f32; }
+.history-empty { color: var(--muted); font-size: 14px; font-weight: 800; padding: 20px 0; text-align: center; }
+
+/* Journey path */
+.path { display: grid; gap: 9px; }
+.path-row { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 18px; background: rgba(92,13,124,.72); border: 1px solid var(--line); }
+.path-node { width: 48px; height: 48px; border-radius: 15px; display: grid; place-items: center; font-size: 24px; flex-shrink: 0; background: linear-gradient(145deg, #ffe782, #ffaf28); box-shadow: 0 4px 0 #7a4700; }
+.path-node.locked { background: linear-gradient(145deg, rgba(130,60,200,.5), rgba(70,10,130,.6)); box-shadow: 0 4px 0 rgba(30,0,60,.7); filter: saturate(.6) brightness(.7); }
+.path-row h3, .path-row p { margin: 0; }
+.path-row p { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+/* ── Persistent alarm bar ─────────────────────────────────────────── */
+/* Shown on all screens EXCEPT home and challenge when alarm is active */
+.alarm-bar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: min(100%, 430px);
+  padding: 10px 16px max(12px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(80,5,110,.97), rgba(45,0,65,.99));
+  border-top: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 -4px 24px rgba(0,0,0,.45);
+  display: flex; align-items: center; gap: 10px;
+  z-index: 50;
+}
+.alarm-bar[hidden] { display: none; }
+.ab-info { flex: 1; }
+.ab-lbl { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 900; }
+.ab-time { font-size: 17px; font-weight: 1000; }
+.ab-cd { font-size: 19px; font-weight: 1000; color: var(--yellow); min-width: 80px; text-align: right; }
+.ab-btn {
+  border: 1.5px solid rgba(255,255,255,.3); border-radius: 14px;
+  padding: 9px 14px; color: #fff; font-weight: 900; font-size: 13px;
+  background: linear-gradient(180deg, #ff58b3, #ca076a);
+  box-shadow: 0 4px 0 #850047; white-space: nowrap;
+}
+
+/* ── Celebration / toasts ────────────────────────────────────────── */
+.celebration { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 20; }
+.burst {
+  position: absolute; left: 50%; top: 55%;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 27%, #fff8ae 0 8%, #ffd83e 10% 47%, #f3a600 49% 74%, #ad6100 76% 100%);
+  border: 2px solid #fff083;
+  animation: burst var(--speed) ease-out forwards;
+}
+@keyframes burst { to { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 0; } }
+
+.toast {
+  position: fixed; left: 50%; bottom: 88px;
+  transform: translateX(-50%); z-index: 60;
+  background: #fff; color: #3d064f;
+  padding: 11px 18px; border-radius: 999px;
+  font-weight: 900; font-size: 14px;
+  box-shadow: 0 9px 24px rgba(0,0,0,.38);
+  white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+  animation: toastIn .22s ease;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } }
+
+/* ── Responsive tweaks ───────────────────────────────────────────── */
+@media (max-height: 710px) {
+  .home-main { justify-content: flex-start; padding-top: 2px; }
+  .question { font-size: 21px; margin-bottom: 2px; }
+  .quick-pills { gap: 5px; margin-bottom: 10px; }
+  .quick-pill { padding: 8px 12px; font-size: 13px; }
+  .time-card { padding: 10px; margin-bottom: 7px; }
+  .picker-box select { font-size: 42px; }
+  .helper { margin: 3px 3px 8px; font-size: 13px; }
+  .btn-3d { padding: 14px; font-size: 18px; }
+  .journey-card { margin-top: 8px; }
+  .status-card { margin-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="celebration" class="celebration"></div>
+
+<!-- Persistent bar: shown on journey/stats screens when alarm is active -->
+<div id="alarmBar" class="alarm-bar" hidden>
+  <div class="ab-info">
+    <div class="ab-lbl">Alarm active</div>
+    <div id="abTime" class="ab-time">—</div>
+  </div>
+  <div id="abCd" class="ab-cd">—</div>
+  <button id="abOpen" class="ab-btn" type="button">Open →</button>
+</div>
+
+<div class="app">
+
+  <!-- ─── HOME ─────────────────────────────────────────────────── -->
+  <section id="home" class="screen active">
+    <header class="topbar">
+      <button id="soundBtn" class="round-btn" aria-label="Test alarm sounds" title="Test alarm sounds">♪</button>
+      <button id="statsBtn" class="round-btn" aria-label="View progress">▥</button>
+      <div class="coin-pill"><span class="coin">★</span><span id="coinTotal">0</span></div>
+    </header>
+
+    <main class="home-main">
+
+      <!-- SETUP VIEW: shown when no alarm is set -->
+      <div id="setupView">
+        <h1 class="question">When do you need to leave?</h1>
+        <p class="subcopy">Tap a quick option — or set an exact time below.</p>
+
+        <!-- Quick-set: the primary action for most use cases -->
+        <p class="quick-label">I need to leave in…</p>
+        <div class="quick-pills">
+          <button class="quick-pill" data-mins="10" type="button">10 min</button>
+          <button class="quick-pill" data-mins="15" type="button">15 min</button>
+          <button class="quick-pill" data-mins="20" type="button">20 min</button>
+          <button class="quick-pill" data-mins="30" type="button">30 min</button>
+          <button class="quick-pill" data-mins="45" type="button">45 min</button>
+          <button class="quick-pill" data-mins="60" type="button">1 hour</button>
+        </div>
+
+        <div class="or-divider">or pick exact time</div>
+
+        <!-- Time card: auto-filled to now+30, AM/PM auto-selected, 1-min steps -->
+        <div class="time-card">
+          <div class="picker-row">
+            <div class="picker-box"><label for="hourSelect">Hour</label><select id="hourSelect"></select></div>
+            <div class="colon">:</div>
+            <div class="picker-box"><label for="minuteSelect">Min</label><select id="minuteSelect"></select></div>
+          </div>
+          <div class="ampm" role="group" aria-label="AM or PM">
+            <button id="amBtn" type="button">AM</button>
+            <button id="pmBtn" type="button">PM</button>
+          </div>
+        </div>
+
+        <!-- "Before I leave" reminder field -->
+        <input id="beforeInput" class="before-input" type="text" maxlength="80"
+               placeholder="Anything to grab? Keys, bag, lunch… (optional)">
+
+        <div class="chip-row">
+          <button type="button" class="item-chip" data-item="🔑 Keys">🔑 Keys</button>
+          <button type="button" class="item-chip" data-item="📱 Phone">📱 Phone</button>
+          <button type="button" class="item-chip" data-item="👛 Wallet">👛 Wallet</button>
+          <button type="button" class="item-chip" data-item="💊 Meds">💊 Meds</button>
+          <button type="button" class="item-chip" data-item="💧 Water">💧 Water</button>
+          <button type="button" class="item-chip" data-item="🧥 Coat">🧥 Coat</button>
+        </div>
+
+        <p class="helper">Buzzer fires <strong>5 min before</strong>. Leave early, earn more coins.<br>Every departure earns something — even late ones.</p>
+        <button id="setAlarmBtn" class="btn-3d" type="button">Set alarm</button>
+      </div>
+
+      <!-- SET VIEW: shown when alarm is active -->
+      <div id="setView" hidden>
+        <h1 class="question">Alarm set ✓</h1>
+        <div class="status-card">
+          <div class="status-check">✓ READY TO GO</div>
+          <div id="statusTime" class="status-time">10:00 AM</div>
+          <!-- Shows "Tomorrow" if alarm crosses midnight -->
+          <div id="statusDay" class="status-day" hidden></div>
+          <div id="statusBuzz" class="status-buzz">Buzzer at 09:55 AM</div>
+          <!-- Before-I-leave reminder on status card -->
+          <div id="statusBefore" class="status-before" hidden>
+            <span class="lbl">Before you leave</span>
+            <span id="statusBeforeText" class="txt"></span>
+          </div>
+          <!-- Early-out button: always visible, label updated dynamically each tick -->
+          <button id="earlyOutBtn" class="btn-3d btn-green early-out" type="button">I'M OUT NOW!</button>
+          <div class="btn-row">
+            <button id="editBtn" class="mini-btn" type="button">Change</button>
+            <button id="setGraceBtn" class="mini-btn" type="button">+3 min buffer</button>
+            <button id="cancelBtn" class="mini-btn" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Journey card: always shown; real icon shown (dimmed) for anticipation -->
+      <div id="journeyCard" class="journey-card" role="button" tabindex="0" aria-label="View journey">
+        <div class="journey-top">
+          <div>
+            <div class="eyebrow">Next journey unlock</div>
+            <div id="nextName" class="journey-name">Walking shoes</div>
+          </div>
+          <div id="nextIcon" class="journey-icon">👟</div>
+        </div>
+        <div class="track"><div id="journeyFill" class="fill" style="width:0%"></div></div>
+        <div class="meta">
+          <span id="journeyCoins">0 / 100 coins</span>
+          <span id="journeyRemaining">100 to go</span>
+        </div>
+      </div>
+
+    </main>
+  </section>
+
+  <!-- ─── CHALLENGE ─────────────────────────────────────────────── -->
+  <section id="challenge" class="screen challenge-screen">
+    <header class="topbar">
+      <!-- Back button: returns to home WITHOUT recording a departure -->
+      <button id="challengeBack" class="round-btn" type="button" aria-label="Back to home">‹</button>
+      <div class="coin-pill"><span class="coin">★</span><span id="chalCoins">0</span></div>
+    </header>
+    <h1 class="go-title">TIME TO GO!</h1>
+    <div id="leaveBy" class="leave-by">Leave by 10:00 AM</div>
+    <div id="phasePill" class="phase-pill">DOUBLE COINS ACTIVE</div>
+    <div id="ring" class="ring" style="--progress:100%">
+      <div class="ring-inner">
+        <span id="ringLabel" class="ring-label">Time left</span>
+        <strong id="countdown" class="countdown">05:00</strong>
+        <span id="rewardNow" class="reward-now">+40 coins</span>
+      </div>
+    </div>
+    <!-- Before-I-leave reminder on challenge screen -->
+    <div id="chalBefore" class="challenge-before" hidden>
+      <span class="lbl">Don't forget</span>
+      <span id="chalBeforeText" class="txt"></span>
+    </div>
+    <!-- Debounced — disabled after first tap until result shown -->
+    <button id="imOutBtn" class="btn-3d btn-green" type="button">I'M OUT! 🚀</button>
+    <div class="grace-row">
+      <button id="chalGrace2Btn" class="grace-btn" type="button">+2 min buffer 🧘</button>
+      <button id="chalGrace5Btn" class="grace-btn" type="button">+5 min buffer 🏃</button>
+    </div>
+  </section>
+
+  <!-- ─── RESULT ────────────────────────────────────────────────── -->
+  <section id="result" class="screen result">
+    <p class="result-kicker">YOU'RE OUT!</p>
+    <div id="resultTier" class="result-tier">NAILED IT! ⭐</div>
+    <p id="resultMsg" class="result-msg"></p>
+    <div class="reward-box">
+      <span class="lbl">Journey coins earned</span>
+      <span id="earnedCoins" class="coins">+40</span>
+      <span id="bonusNote" class="bonus-note"></span>
+    </div>
+    <p id="resultNext" class="result-next"></p>
+    <button id="doneBtn" class="btn-3d" type="button">Done ✓</button>
+  </section>
+
+  <!-- ─── JOURNEY ──────────────────────────────────────────────── -->
+  <section id="journey" class="screen page">
+    <header class="topbar">
+      <button class="round-btn" data-back="home" type="button">‹</button>
+      <div class="coin-pill"><span class="coin">★</span><span id="journeyTotal">0</span></div>
+    </header>
+    <h1 class="page-title">Your Journey</h1>
+    <div class="stats-grid">
+      <div class="metric"><span>Departures</span><strong id="jDepartures">0</strong></div>
+      <div class="metric"><span>Current streak</span><strong id="jStreak">0 🔥</strong></div>
+    </div>
+    <div id="path" class="path"></div>
+  </section>
+
+  <!-- ─── STATS ────────────────────────────────────────────────── -->
+  <section id="stats" class="screen page">
+    <header class="topbar">
+      <button class="round-btn" data-back="home" type="button">‹</button>
+      <div class="coin-pill"><span class="coin">★</span><span id="statsCoins">0</span></div>
+    </header>
+    <h1 class="page-title">Your progress</h1>
+    <div class="stats-grid">
+      <div class="metric"><span>Total coins</span><strong id="statCoins">0</strong></div>
+      <div class="metric"><span>Departures</span><strong id="statDeps">0</strong></div>
+      <div class="metric"><span>Current streak</span><strong id="statStreak">0</strong></div>
+      <div class="metric"><span>Best streak</span><strong id="statBest">0</strong></div>
+    </div>
+    <h2 class="history-title">Last 7 departures</h2>
+    <div id="histBars" class="history-bars"></div>
+    <div id="histLegend" class="history-legend">
+      <span class="early">■ Early</span>
+      <span class="ontime">■ On time</span>
+      <span class="late">■ Late</span>
+    </div>
+    <div id="histEmpty" class="history-empty" hidden>Complete your first departure to see your history here.</div>
+  </section>
+
+</div><!-- .app -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  MILESTONES — real emoji icons shown in journey card (dimmed)
+// ═══════════════════════════════════════════════════════════════════
+const MILESTONES = [
+  { id:'home',     name:'Home',                  coins:0,      icon:'🏠', clue:'Your journey begins at home.' },
+  { id:'shoes',    name:'Walking shoes',          coins:100,    icon:'👟', clue:'You are ready to take the first step.' },
+  { id:'backpack', name:'Backpack',               coins:250,    icon:'🎒', clue:'Pack the essentials.' },
+  { id:'suitcase', name:'Suitcase',               coins:500,    icon:'🧳', clue:'You\'re nearly packed.' },
+  { id:'bus',      name:'Local bus ticket',       coins:800,    icon:'🚌', clue:'Time to leave the neighbourhood.' },
+  { id:'train',    name:'Train ticket',           coins:1200,   icon:'🚂', clue:'A bigger journey is beginning.' },
+  { id:'port',     name:'Port arrival',           coins:1800,   icon:'⚓', clue:'The sea is waiting.' },
+  { id:'ferry',    name:'Ferry',                  coins:2500,   icon:'⛴️', clue:'Cross the water.' },
+  { id:'cruise',   name:'Cruise ship',            coins:3500,   icon:'🚢', clue:'The voyage gets bigger.' },
+  { id:'passport', name:'Passport',               coins:5000,   icon:'🛂', clue:'International travel is close.' },
+  { id:'board',    name:'Boarding pass',          coins:7500,   icon:'🎫', clue:'Your gate is calling.' },
+  { id:'plane',    name:'Plane',                  coins:10000,  icon:'✈️', clue:'Take to the sky.' },
+  { id:'dest',     name:'First destination',      coins:15000,  icon:'🌴', clue:'You made it somewhere new.' },
+  { id:'biz',      name:'Business-class upgrade', coins:25000,  icon:'🥂', clue:'Travel in comfort.' },
+  { id:'jet',      name:'Private jet',            coins:40000,  icon:'🛩️', clue:'The world is yours.' },
+  { id:'island',   name:'Private island',         coins:60000,  icon:'🏝️', clue:'Paradise is waiting.' },
+  { id:'launch',   name:'Space launch',           coins:100000, icon:'🚀', clue:'Next stop, space.' },
+  { id:'moon',     name:'Moon landing',           coins:150000, icon:'🌕', clue:'You reached the moon.' },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+const KEY = 'departure-alarm-v5';
+
+function defaultState() {
+  return { coins:0, alarm:null, departures:[], currentStreak:0, bestStreak:0, lastDepartureDay:null, rewardedIds:[] };
+}
+
+function load() {
+  try { return Object.assign(defaultState(), JSON.parse(localStorage.getItem(KEY) || '{}')); }
+  catch { return defaultState(); }
+}
+
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+let state = load();
+const $ = id => document.getElementById(id);
+
+// ═══════════════════════════════════════════════════════════════════
+//  DYNAMIC DIMINISHING REWARDS
+//  Calculates coins in real-time based on seconds early/late.
+//  Earlier departure = Higher bonus points.
+//  As time passes, points visibly diminish every second!
+// ═══════════════════════════════════════════════════════════════════
+function reward(targetMs, nowMs = Date.now()) {
+  const secEarly = Math.round((targetMs - nowMs) / 1000);
+  
+  if (secEarly >= 600) {
+    // 10+ min early: Maximum Early Bird Jackpot (100 coins)
+    return 100;
+  }
+  if (secEarly >= 300) {
+    // 5 to 10 min early: scales from 80 coins at 5m up to 100 coins at 10m
+    return Math.round(80 + ((secEarly - 300) / 300) * 20);
+  }
+  if (secEarly >= 0) {
+    // 0 to 5 min early (active challenge window):
+    // Scales from 40 coins (on-time base) up to 80 coins (double on-time at 5m early!)
+    return Math.round(40 + (secEarly / 300) * 40);
+  }
+  
+  // Past target (late): secEarly < 0
+  const lateSec = -secEarly;
+  const lateMin = lateSec / 60;
+  if (lateMin <= 15) {
+    // 0 to 15 min late: diminishes from 40 down to 15 coins
+    return Math.max(15, Math.round(40 - (lateMin / 15) * 25));
+  }
+  // 15 to 30+ min late: diminishes gently from 15 down to 10 coins (forgiving floor)
+  return Math.max(10, Math.round(15 - ((lateMin - 15) / 15) * 5));
+}
+
+function tierLabel(targetMs, nowMs = Date.now()) {
+  const secEarly = Math.round((targetMs - nowMs) / 1000);
+  if (secEarly >= 600) return 'MAX BONUS! 🌟';
+  if (secEarly >= 300) return 'EARLY BIRD! 🚀';
+  if (secEarly >= 60)  return 'AHEAD OF TIME! ⚡';
+  if (secEarly >= -30) return 'RIGHT ON TIME! ⭐';
+  if (secEarly >= -300) return 'STILL MOVING! 🏃';
+  if (secEarly >= -900) return 'STILL COUNTS! 👏';
+  return 'YOU GOT OUT! 🙌';
+}
+
+function tierMsg(targetMs, nowMs = Date.now(), pts = 40) {
+  const secEarly = Math.round((targetMs - nowMs) / 1000);
+  if (secEarly >= 60) {
+    const mins = Math.floor(secEarly / 60);
+    const secs = secEarly % 60;
+    const timeStr = secs > 0 ? `${mins}m ${secs}s` : `${mins} min`;
+    return `Incredible! You left ${timeStr} early. You locked in +${pts} coins before they diminished!`;
+  }
+  if (secEarly >= -30) {
+    return `Right on time! You committed to your departure time and hit it. Solid consistency!`;
+  }
+  const lateSec = -secEarly;
+  const lateMin = Math.max(1, Math.round(lateSec / 60));
+  return `You got out the door! Even though you were ${lateMin} min behind, you left — and every departure builds the habit.`;
+}
+
+function coinBonusLabel(targetMs, nowMs = Date.now()) {
+  const secEarly = Math.round((targetMs - nowMs) / 1000);
+  const pts = reward(targetMs, nowMs);
+  if (secEarly >= 600) return `🌟 MAX BONUS · ${pts} COINS`;
+  if (secEarly >= 300) return `🚀 EARLY BIRD · ${pts} COINS`;
+  if (secEarly >= 0)   return `⚡ BONUS ACTIVE · ${pts} COINS`;
+  if (secEarly >= -300) return `🏃 GRACE WINDOW · ${pts} COINS`;
+  if (secEarly >= -900) return `👏 STILL EARNING · ${pts} COINS`;
+  return `💪 FORGIVING FLOOR · ${pts} COINS`;
+}
+
+// Early-out button label: computed dynamically so it's always accurate
+function earlyBtnLabel(targetMs) {
+  const pts = reward(targetMs, Date.now());
+  const secEarly = Math.round((targetMs - Date.now()) / 1000);
+  if (secEarly >= 60) {
+    const m = Math.floor(secEarly / 60);
+    return `I'M OUT NOW · +${pts} COINS (${m}m early bonus!)`;
+  }
+  if (secEarly >= 0) {
+    return `I'M OUT NOW · +${pts} COINS (On time!)`;
+  }
+  return `I'M OUT NOW · +${pts} COINS`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MILESTONES HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function currentMilestone() { return [...MILESTONES].reverse().find(m => state.coins >= m.coins) || MILESTONES[0]; }
+function nextMilestone()    { return MILESTONES.find(m => state.coins < m.coins) || null; }
+
+// ═══════════════════════════════════════════════════════════════════
+//  TIME HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function to24(hour, period) {
+  hour = Number(hour);
+  if (period === 'AM') return hour === 12 ? 0 : hour;
+  return hour === 12 ? 12 : hour + 12;
+}
+
+function format12(date) {
+  return new Intl.DateTimeFormat('en-GB', { hour:'numeric', minute:'2-digit', hour12:true })
+    .format(date).replace('am','AM').replace('pm','PM');
+}
+
+function formatDay(date) {
+  const today = new Date(); const tom = new Date();
+  tom.setDate(today.getDate() + 1);
+  if (date.toDateString() === today.toDateString()) return '';
+  if (date.toDateString() === tom.toDateString()) return 'Tomorrow';
+  return date.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+}
+
+// Build a Date from 12-hour picker values; pushes to tomorrow if in the past
+function makeTargetFromPicker(hour, minute, period) {
+  const d = new Date(), h = to24(hour, period);
+  d.setHours(h, Number(minute), 0, 0);
+  if (d <= new Date()) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+// Build a Date N minutes from now (quick-set)
+function makeTargetFromMins(mins) {
+  return new Date(Date.now() + mins * 60000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SELECTORS — 1-min increments; auto-filled to now+30; auto AM/PM
+// ═══════════════════════════════════════════════════════════════════
+let ampm = '';
+
+function initSelectors() {
+  for (let h = 1; h <= 12; h++) {
+    $('hourSelect').insertAdjacentHTML('beforeend',
+      `<option value="${h}">${String(h).padStart(2,'0')}</option>`);
+  }
+  for (let m = 0; m < 60; m++) {
+    $('minuteSelect').insertAdjacentHTML('beforeend',
+      `<option value="${m}">${String(m).padStart(2,'0')}</option>`);
+  }
+  // Pre-fill to current time + 30 min, auto-select AM/PM
+  const def = new Date(Date.now() + 30 * 60000);
+  const h = def.getHours(), m = def.getMinutes();
+  const p = h >= 12 ? 'PM' : 'AM';
+  $('hourSelect').value = h % 12 || 12;
+  $('minuteSelect').value = m;
+  selectPeriod(p);
+}
+
+function selectPeriod(p) {
+  ampm = p;
+  $('amBtn').classList.toggle('active', p === 'AM');
+  $('pmBtn').classList.toggle('active', p === 'PM');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+  // Persistent alarm bar: show on journey/stats only when alarm active
+  const showBar = (id === 'journey' || id === 'stats') && !!state.alarm;
+  $('alarmBar').hidden = !showBar;
+  if (id === 'journey') renderJourney();
+  if (id === 'stats')   renderStats();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  NOTIFICATIONS — requested contextually when alarm is first set
+// ═══════════════════════════════════════════════════════════════════
+let notifTimeouts = [];
+
+function clearNotifTimeouts() {
+  notifTimeouts.forEach(t => clearTimeout(t));
+  notifTimeouts = [];
+}
+
+function fireNotif(title, body, tag) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(title, { body, tag, requireInteraction: true });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch(e) {}
+}
+
+function scheduleNotifications(target) {
+  clearNotifTimeouts();
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = Date.now();
+  const warnMs   = target.getTime() - 5 * 60000;
+  const targetMs = target.getTime();
+  if (warnMs > now) {
+    notifTimeouts.push(setTimeout(() =>
+      fireNotif('⏰ 5 minutes to go!',
+        `Leave by ${format12(target)} — open the app and tap I\'m Out when you leave.`,
+        'dep-warn'), warnMs - now));
+  }
+  if (targetMs > now) {
+    notifTimeouts.push(setTimeout(() =>
+      fireNotif('🚨 Leave NOW!',
+        `Your departure time is here. Go go go! Open the app when you leave.`,
+        'dep-alarm'), targetMs - now));
+  }
+}
+
+async function ensureNotifications(target) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      scheduleNotifications(target);
+      toast('🔔 Notifications enabled — we\'ll alert you even if this tab is in the background.');
+    } else {
+      toast('No notification permission — keep this tab open for alarm sounds.');
+    }
+    return;
+  }
+  if (Notification.permission === 'granted') scheduleNotifications(target);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ABANDONED ALARM — award small "intention coins" if user set an
+//  alarm but never tapped I'm Out (encourages re-engagement)
+// ═══════════════════════════════════════════════════════════════════
+function checkAbandonedAlarm() {
+  if (!state.alarm) return;
+  const target = new Date(state.alarm.target);
+  // If alarm is >30 min past and not rewarded yet, award intention coins
+  if (Date.now() > target.getTime() + 30 * 60000 && !state.rewardedIds.includes(state.alarm.id)) {
+    state.coins += 5;
+    state.alarm = null;
+    save();
+    setTimeout(() =>
+      toast('🌱 +5 intention coins — you set an alarm last time. Keep going!'), 900);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER — home screen
+// ═══════════════════════════════════════════════════════════════════
+function render() {
+  const has = !!state.alarm;
+  $('setupView').hidden = has;
+  $('setView').hidden   = !has;
+  $('coinTotal').textContent  = state.coins.toLocaleString('en-GB');
+  $('chalCoins').textContent  = state.coins.toLocaleString('en-GB');
+
+  if (has) {
+    const target    = new Date(state.alarm.target);
+    const targetMs  = target.getTime();
+    const dayLabel  = formatDay(target);
+
+    $('statusTime').textContent = format12(target);
+    $('statusDay').textContent  = dayLabel;
+    $('statusDay').hidden       = !dayLabel;
+    $('statusBuzz').textContent = `Buzzer at ${format12(new Date(targetMs - 5*60000))}`;
+
+    // Before-I-leave note
+    if (state.alarm.before) {
+      $('statusBefore').hidden = false;
+      $('statusBeforeText').textContent = state.alarm.before;
+    } else {
+      $('statusBefore').hidden = true;
+    }
+
+    // Early-out button: always shown (not hidden), label computed dynamically
+    $('earlyOutBtn').textContent = earlyBtnLabel(targetMs);
+
+    // Alarm bar on journey/stats
+    $('abTime').textContent = format12(target);
+    updateAlarmBar();
+  }
+
+  renderJourneyCard();
+}
+
+function updateAlarmBar() {
+  if (!state.alarm) return;
+  const target   = new Date(state.alarm.target);
+  const targetMs = target.getTime();
+  const nowMs    = Date.now();
+  const secs     = Math.ceil((targetMs - nowMs) / 1000);
+  const abs      = Math.abs(secs);
+  const hh       = String(Math.floor(abs / 3600)).padStart(2,'0');
+  const mm       = String(Math.floor((abs % 3600) / 60)).padStart(2,'0');
+  const ss       = String(abs % 60).padStart(2,'0');
+  const parts    = abs >= 3600 ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`;
+  const pts      = reward(targetMs, nowMs);
+  $('abCd').textContent = secs >= 0 ? `${parts} · +${pts}` : `−${parts} · +${pts}`;
+}
+
+function renderJourneyCard() {
+  const next = nextMilestone(), cur = currentMilestone();
+
+  if (!next) {
+    $('nextName').textContent = 'Journey complete! 🌕';
+    $('nextIcon').textContent = '🌕';
+    $('nextIcon').style.filter = '';
+    $('journeyFill').style.width = '100%';
+    $('journeyCoins').textContent = `${state.coins.toLocaleString('en-GB')} coins`;
+    $('journeyRemaining').textContent = 'Moon reached!';
+    return;
+  }
+
+  const start = cur.coins, range = next.coins - start;
+  const pct   = Math.max(0, Math.min(100, (state.coins - start) / range * 100));
+
+  $('nextName').textContent         = next.name;
+  // Show the actual real icon (dimmed via CSS .journey-icon) so user knows what they're working toward
+  $('nextIcon').textContent         = next.icon;
+  $('journeyFill').style.width      = `${pct}%`;
+  $('journeyCoins').textContent     = `${state.coins.toLocaleString('en-GB')} / ${next.coins.toLocaleString('en-GB')} coins`;
+  $('journeyRemaining').textContent = `${(next.coins - state.coins).toLocaleString('en-GB')} to go`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SET ALARM
+// ═══════════════════════════════════════════════════════════════════
+async function commitAlarm(target) {
+  const before = $('beforeInput').value.trim();
+  enableAudio();
+  playSetConfirmation();
+  launchMini();
+
+  state.alarm = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    target: target.toISOString(),
+    before,
+    warningPlayed: false,
+    targetPlayed:  false,
+  };
+  save();
+  render();
+
+  const dayLabel = formatDay(target);
+  toast(`✓ Alarm set for ${format12(target)}${dayLabel ? ' (' + dayLabel + ')' : ''}`);
+
+  // Request notification permission contextually (non-blocking)
+  ensureNotifications(target);
+}
+
+function setAlarm() {
+  const h = $('hourSelect').value, m = $('minuteSelect').value;
+  if (!h || m === '' || !ampm) { toast('Choose an hour, minute, and AM or PM.'); return; }
+  commitAlarm(makeTargetFromPicker(h, m, ampm));
+}
+
+function setAlarmQuick(mins) {
+  commitAlarm(makeTargetFromMins(mins));
+}
+
+function editAlarm()   { state.alarm = null; clearNotifTimeouts(); save(); render(); }
+function cancelAlarm() { state.alarm = null; clearNotifTimeouts(); save(); render(); }
+
+// ═══════════════════════════════════════════════════════════════════
+//  CHALLENGE SCREEN
+// ═══════════════════════════════════════════════════════════════════
+function updateChallenge() {
+  if (!state.alarm) return;
+
+  const target   = new Date(state.alarm.target);
+  const targetMs = target.getTime();
+  const nowMs    = Date.now();
+  const secs     = Math.ceil((targetMs - nowMs) / 1000);
+  const abs      = Math.abs(secs);
+  const pts      = reward(targetMs, nowMs);
+  const before   = secs >= 0;
+
+  $('ringLabel').textContent  = before ? 'Time left · Points dropping!' : 'GO NOW — points diminishing!';
+  $('countdown').textContent  = `${String(Math.floor(abs/60)).padStart(2,'0')}:${String(abs%60).padStart(2,'0')}`;
+  $('rewardNow').textContent  = `+${pts} coins`;
+  $('phasePill').textContent  = coinBonusLabel(targetMs, nowMs);
+
+  const progress = before ? Math.max(0, Math.min(100, secs / 300 * 100)) : 0;
+  $('ring').style.setProperty('--progress', `${progress}%`);
+  // Past departure: ring pulses red urgently (not empty/broken)
+  $('ring').classList.toggle('past', !before);
+
+  $('leaveBy').textContent = before
+    ? `Leave by ${format12(target)}`
+    : `Go! Points diminish each minute · Available: +${pts} coins`;
+
+  // Before-I-leave reminder on challenge screen
+  if (state.alarm.before) {
+    $('chalBefore').hidden = false;
+    $('chalBeforeText').textContent = state.alarm.before;
+  } else {
+    $('chalBefore').hidden = true;
+  }
+
+  // Keep early-out button label accurate on home screen too
+  if (!$('setView').hidden) {
+    $('earlyOutBtn').textContent = earlyBtnLabel(target.getTime());
+  }
+}
+
+function openChallenge() {
+  if (!$('challenge').classList.contains('active')) show('challenge');
+  $('alarmBar').hidden = true;
+  updateChallenge();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STREAK — grace day: one missed day doesn't reset the streak
+// ═══════════════════════════════════════════════════════════════════
+function updateStreak(now) {
+  const day = now.toISOString().slice(0, 10);
+  if (!state.lastDepartureDay) {
+    state.currentStreak = 1;
+  } else {
+    const prev = new Date(state.lastDepartureDay + 'T12:00:00');
+    const cur  = new Date(day + 'T12:00:00');
+    const days = Math.round((cur - prev) / 86400000);
+    if      (days === 0) { /* same day — no change */ }
+    else if (days === 1) { state.currentStreak += 1; }        // consecutive
+    else if (days === 2) { /* grace day — streak survives */ }
+    else                 { state.currentStreak = 1; }         // broken
+  }
+  state.lastDepartureDay = day;
+  state.bestStreak = Math.max(state.bestStreak, state.currentStreak);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  COMPLETE DEPARTURE
+// ═══════════════════════════════════════════════════════════════════
+let imOutLocked = false; // debounce — prevents double-tap rewarding
+
+function complete() {
+  if (!state.alarm || imOutLocked) return;
+  imOutLocked = true;
+  $('imOutBtn').disabled = true;
+
+  const id = state.alarm.id;
+  // Guard: already rewarded (e.g. tapped from two different screens)
+  if (state.rewardedIds.includes(id)) {
+    state.alarm = null; save(); show('home'); render();
+    imOutLocked = false; $('imOutBtn').disabled = false;
+    return;
+  }
+
+  const now      = new Date();
+  const target   = new Date(state.alarm.target);
+  const targetMs = target.getTime();
+  const nowMs    = now.getTime();
+  const diff     = (nowMs - targetMs) / 60000; // in minutes (negative = early, positive = late)
+  const base     = reward(targetMs, nowMs);
+
+  updateStreak(now);
+
+  // Bonus coins for milestones
+  let bonus = 0, bonusParts = [];
+  if ((state.departures.length + 1) % 5 === 0) {
+    bonus += 25; bonusParts.push('+25 5th departure bonus!');
+  }
+  if (state.currentStreak > 0 && state.currentStreak % 7 === 0) {
+    bonus += 100; bonusParts.push('+100 week streak bonus!');
+  }
+
+  const total = base + bonus;
+  state.coins += total;
+  state.departures.unshift({
+    id, target: target.toISOString(), completedAt: now.toISOString(), diff, coins: total
+  });
+  state.rewardedIds.push(id);
+  // Trim rewardedIds so localStorage doesn't grow unboundedly
+  if (state.rewardedIds.length > 50) state.rewardedIds = state.rewardedIds.slice(-50);
+
+  state.alarm = null;
+  clearNotifTimeouts();
+  save();
+
+  $('resultTier').textContent  = tierLabel(targetMs, nowMs);
+  $('resultMsg').textContent   = tierMsg(targetMs, nowMs, total);
+  $('earnedCoins').textContent = `+${total}`;
+  $('bonusNote').textContent   = bonusParts.join(' · ');
+
+  const next = nextMilestone();
+  $('resultNext').textContent = next
+    ? `${(next.coins - state.coins).toLocaleString('en-GB')} coins until ${next.name} ${next.icon}`
+    : 'You completed the Journey! 🌕';
+
+  show('result');
+  launchCoins(total);
+  playCoinCascade();
+  render();
+
+  // Re-enable after result is shown
+  setTimeout(() => {
+    imOutLocked = false;
+    if ($('imOutBtn')) $('imOutBtn').disabled = false;
+  }, 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER JOURNEY / STATS
+// ═══════════════════════════════════════════════════════════════════
+function renderJourney() {
+  $('journeyTotal').textContent  = state.coins.toLocaleString('en-GB');
+  $('jDepartures').textContent   = state.departures.length;
+  $('jStreak').textContent       = state.currentStreak > 0 ? `${state.currentStreak} 🔥` : '0';
+
+  $('path').innerHTML = MILESTONES.map(m => {
+    const unlocked = state.coins >= m.coins;
+    return `<div class="path-row">
+      <div class="path-node ${unlocked ? '' : 'locked'}">${m.icon}</div>
+      <div>
+        <h3>${unlocked ? m.name : 'Mystery ahead'}</h3>
+        <p>${unlocked ? m.clue : `Unlocks at ${m.coins.toLocaleString('en-GB')} coins`}</p>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderStats() {
+  $('statsCoins').textContent  = state.coins.toLocaleString('en-GB');
+  $('statCoins').textContent   = state.coins.toLocaleString('en-GB');
+  $('statDeps').textContent    = state.departures.length;
+  $('statStreak').textContent  = state.currentStreak;
+  $('statBest').textContent    = state.bestStreak;
+
+  const last7 = state.departures.slice(0, 7).reverse(); // oldest → newest left → right
+  const bars  = $('histBars');
+
+  if (last7.length === 0) {
+    bars.innerHTML = '';
+    $('histEmpty').hidden  = false;
+    $('histLegend').hidden = true;
+    return;
+  }
+  $('histEmpty').hidden  = true;
+  $('histLegend').hidden = false;
+
+  const maxC = Math.max(...last7.map(d => d.coins), 40);
+  bars.innerHTML = last7.map(d => {
+    const pct   = Math.max(10, Math.round(d.coins / maxC * 100));
+    const cls   = d.diff < -0.5 ? 'early' : d.diff <= 1.5 ? 'ontime' : 'late';
+    const emoji = d.diff <= -5 ? '🌟' : d.diff < -0.5 ? '🚀' : d.diff <= 1.5 ? '⭐' : d.diff <= 10 ? '🏃' : '👏';
+    const time  = new Date(d.completedAt).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+    const timingDesc = d.diff < -0.5 ? `${Math.abs(Math.round(d.diff))}m early` : d.diff <= 1.5 ? 'On time' : `${Math.round(d.diff)}m late`;
+    return `<div class="h-bar-wrap">
+      <div class="h-emoji" title="${time} (${timingDesc}): +${d.coins} coins">${emoji}</div>
+      <div class="h-bar ${cls}" style="height:${pct}%" title="${time} (${timingDesc}): +${d.coins} coins"></div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ALARM TICK — fires every 500 ms
+// ═══════════════════════════════════════════════════════════════════
+function alarmTick() {
+  if (!state.alarm) { $('alarmBar').hidden = true; return; }
+
+  const now    = new Date();
+  const target = new Date(state.alarm.target);
+  const warn   = new Date(target.getTime() - 5 * 60000);
+
+  // Auto-navigate home → challenge at T-5 min (only if on home screen)
+  if (now >= warn && now < new Date(target.getTime() + 60 * 60000)) {
+    if (!$('challenge').classList.contains('active') && $('home').classList.contains('active')) {
+      openChallenge();
+    }
+  }
+
+  // Warning sound + vibrate
+  if (now >= warn && !state.alarm.warningPlayed) {
+    state.alarm.warningPlayed = true; save();
+    playFiveMinuteAlarm();
+    if (navigator.vibrate) navigator.vibrate([180, 90, 180]);
+  }
+
+  // Departure sound + vibrate
+  if (now >= target && !state.alarm.targetPlayed) {
+    state.alarm.targetPlayed = true;
+    state.alarm.lastReminderTick = now.getTime();
+    save();
+    playDepartureAlarm();
+    if (navigator.vibrate) navigator.vibrate([280, 100, 280, 100, 280]);
+  } else if (now >= target && state.alarm.targetPlayed) {
+    // Overdue nudge every 30 seconds so you don't miss departure if distracted
+    const last = state.alarm.lastReminderTick || target.getTime();
+    if (now.getTime() - last >= 30000) {
+      state.alarm.lastReminderTick = now.getTime();
+      save();
+      playReminderChime();
+      if (navigator.vibrate) navigator.vibrate([160, 80, 160]);
+    }
+  }
+
+  // Live updates while challenge is on screen
+  if ($('challenge').classList.contains('active')) updateChallenge();
+
+  // Update early-out label live on home screen
+  if ($('home').classList.contains('active') && !$('setView').hidden) {
+    $('earlyOutBtn').textContent = earlyBtnLabel(target.getTime());
+  }
+
+  // Update alarm bar on journey/stats
+  if (!$('alarmBar').hidden) updateAlarmBar();
+}
+
+function addGraceMinutes(mins) {
+  if (!state.alarm) return;
+  const cur = new Date(state.alarm.target);
+  const next = new Date(cur.getTime() + mins * 60000);
+  state.alarm.target = next.toISOString();
+  state.alarm.targetPlayed = false;
+  state.alarm.lastReminderTick = null;
+  save();
+  render();
+  if ($('challenge').classList.contains('active')) updateChallenge();
+  toast(`+${mins} min buffer added! Take a breath — you're doing great.`);
+  enableAudio();
+  playTone(520, .14, 0, .2, 'triangle');
+  playTone(720, .18, .1, .25, 'triangle');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  AUDIO
+// ═══════════════════════════════════════════════════════════════════
+let audioCtx = null, soundOn = true;
+
+function enableAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioCtx.resume();
+}
+
+function playTone(freq, dur, delay=0, vol=.24, type='sine') {
+  if (!soundOn || !audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  const t = audioCtx.currentTime + delay;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol,    t + .015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + dur + .04);
+}
+
+function playSetConfirmation()  { enableAudio(); [620, 820, 1020].forEach((f,i) => playTone(f,.16,i*.11,.2,'triangle')); }
+function playFiveMinuteAlarm() { enableAudio(); [660, 880, 660, 990].forEach((f,i) => playTone(f,.24,i*.22,.32,'triangle')); }
+function playDepartureAlarm()  { enableAudio(); [440, 440, 620, 820].forEach((f,i) => playTone(f,.3,i*.28,.38,i<2?'square':'triangle')); }
+function playReminderChime()   { enableAudio(); [580, 780].forEach((f,i) => playTone(f,.2,i*.16,.26,'triangle')); }
+function playCoinCascade()     { enableAudio(); [700, 880, 1040, 1260, 1480].forEach((f,i) => playTone(f,.13,i*.075,.22,'triangle')); }
+
+// ═══════════════════════════════════════════════════════════════════
+//  CELEBRATIONS
+// ═══════════════════════════════════════════════════════════════════
+function launchCoins(pts) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const layer = $('celebration'); layer.innerHTML = '';
+  const n = Math.min(90, 20 + pts);
+  for (let i = 0; i < n; i++) {
+    const e = document.createElement('span');
+    const a = Math.random() * Math.PI * 2, d = 120 + Math.random() * 350;
+    e.className = 'burst';
+    e.style.cssText = `--x:${Math.cos(a)*d}px;--y:${Math.sin(a)*d-80}px;--r:${Math.random()*720-360}deg;--speed:${1+Math.random()*.8}s`;
+    layer.appendChild(e);
+  }
+  setTimeout(() => layer.innerHTML = '', 2200);
+}
+
+function launchMini() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const layer = $('celebration'); layer.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const e = document.createElement('span');
+    const a = Math.random() * Math.PI * 2, d = 40 + Math.random() * 90;
+    e.className = 'burst';
+    e.style.cssText = `--x:${Math.cos(a)*d}px;--y:${Math.sin(a)*d-40}px;--r:${Math.random()*360}deg;--speed:${.45+Math.random()*.3}s;width:13px;height:13px`;
+    layer.appendChild(e);
+  }
+  setTimeout(() => layer.innerHTML = '', 900);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════════════
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════════════
+$('amBtn').onclick = () => selectPeriod('AM');
+$('pmBtn').onclick = () => selectPeriod('PM');
+$('setAlarmBtn').onclick  = setAlarm;
+$('earlyOutBtn').onclick  = complete;
+$('editBtn').onclick      = editAlarm;
+$('setGraceBtn').onclick  = () => addGraceMinutes(3);
+$('cancelBtn').onclick    = cancelAlarm;
+$('imOutBtn').onclick     = complete;
+$('chalGrace2Btn').onclick = () => addGraceMinutes(2);
+$('chalGrace5Btn').onclick = () => addGraceMinutes(5);
+$('doneBtn').onclick      = () => { show('home'); render(); };
+$('statsBtn').onclick     = () => show('stats');
+$('challengeBack').onclick = () => { show('home'); render(); }; // back without completing
+
+// Quick item chips toggle
+document.querySelectorAll('.item-chip').forEach(chip => {
+  chip.onclick = () => {
+    chip.classList.toggle('active');
+    const active = Array.from(document.querySelectorAll('.item-chip.active')).map(c => c.dataset.item);
+    $('beforeInput').value = active.join(', ');
+  };
+});
+
+$('journeyCard').onclick   = () => show('journey');
+$('journeyCard').onkeydown = e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); show('journey'); } };
+
+$('abOpen').onclick = () => { if (state.alarm) openChallenge(); };
+
+// Quick-set pills
+document.querySelectorAll('.quick-pill').forEach(btn => {
+  btn.onclick = () => {
+    enableAudio();
+    setAlarmQuick(Number(btn.dataset.mins));
+  };
+});
+
+// data-back buttons (journey / stats → home)
+document.querySelectorAll('[data-back]').forEach(b => {
+  b.onclick = () => show(b.dataset.back);
+});
+
+// Sound test button
+$('soundBtn').onclick = () => {
+  soundOn = true;
+  enableAudio();
+  playFiveMinuteAlarm();
+  setTimeout(playDepartureAlarm, 1200);
+  toast('Testing alarm sounds ♪');
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+initSelectors();
+checkAbandonedAlarm(); // award intention coins for any expired-but-unrewarded alarm
+render();
+alarmTick();
+setInterval(alarmTick, 500);
+</script>
+</body>
+</html>
