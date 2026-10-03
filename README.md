@@ -21,7 +21,14 @@ Traditional alarms create panic and time blindness. You snooze, get distracted b
 
 ## Local Usage
 
-Open `index.html` in any modern web browser or add to your mobile Home Screen as a standalone PWA.
+Open `index.html` in any modern web browser, or install it as an app (see below).
+
+## Add to Home Screen
+
+* **iPhone:** open the live app in Safari, tap Share, then **Add to Home Screen**.
+* **Android (Chrome):** menu, then **Install app** (or **Add to Home screen**).
+
+It works offline once loaded. Note: on iPhone the home-screen app keeps its own coins and progress, separate from the Safari tab's (iOS keeps their storage apart), so you start fresh the first time you open the installed app.
 
 ---
 
