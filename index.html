@@ -294,9 +294,36 @@ input { cursor: text; }
   background: radial-gradient(circle at 50% 28%, #bc1877, #650040 72%);
   box-shadow: inset 0 8px 18px rgba(255,97,186,.22), inset 0 -12px 20px rgba(42,0,33,.4);
 }
-.ring-label { font-size: 12px; color: #f2c0dc; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.ring-label { font-size: 16px; color: #f2c0dc; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 .countdown { font-size: clamp(58px,17vw,78px); font-weight: 1000; letter-spacing: -.07em; line-height: .96; text-shadow: 0 5px 0 #4b002f; }
 .reward-now { color: var(--yellow); font-size: 20px; font-weight: 1000; }
+
+/* ── DA-01 visible consequence ───────────────────────────────────── */
+.stage { display:flex; flex-direction:column; align-items:center; margin:6px auto 8px; width:100%; }
+.glass-wrap { position:relative; width:min(62vw,230px); aspect-ratio:200/250; filter: drop-shadow(0 0 22px rgba(255,37,144,.5)); }
+.glass-wrap svg { width:100%; height:100%; display:block; overflow:visible; }
+.glass-body { fill:rgba(255,255,255,.07); stroke:#ffd0ea; stroke-width:5; stroke-linejoin:round; }
+.sand-top { fill:var(--yellow); }
+.lost-text { fill:#ff5a80; font-weight:1000; font-size:30px; letter-spacing:.12em; text-anchor:middle; opacity:.9; }
+.grain { fill:var(--yellow); opacity:0; animation: grainFall 1.2s linear infinite; }
+.grain.g2 { animation-delay:.4s; } .grain.g3 { animation-delay:.8s; }
+@keyframes grainFall { 0%{ transform:translateY(0); opacity:1; } 80%{ opacity:1; } 100%{ transform:translateY(95px); opacity:0; } }
+.stage.nosand .grain { display:none; }
+.stage.urgent .sand-top { fill:#ff9a3d; }
+.stage.urgent .glass-wrap { animation: hgPulse 1s ease-in-out infinite; }
+@keyframes hgPulse { 50% { transform:scale(1.03); } }
+.stage.lossbeat .glass-wrap { animation: hgShake .4s linear 3; }
+@keyframes hgShake { 0%,100%{ transform:translateX(0);} 25%{ transform:translateX(-7px) rotate(-2deg);} 75%{ transform:translateX(7px) rotate(2deg);} }
+.stage.lossbeat .glass-body, .stage.past .glass-body { stroke:#ff5a80; }
+.stage.lossbeat .glass-wrap { filter: drop-shadow(0 0 30px rgba(255,58,110,.95)); }
+.threshold { min-height:26px; font-size:18px; font-weight:1000; letter-spacing:.05em; color:#ffb347; margin:2px 0 0; }
+.threshold.t10 { color:#ff5a80; animation: hgPulse .8s ease-in-out infinite; display:inline-block; }
+.threshold.lossmsg { color:#ff5a80; font-size:24px; }
+.coins-big { font-size:clamp(34px,10vw,44px); font-weight:1000; color:var(--yellow); line-height:1; text-shadow:0 4px 0 #8d064e; }
+.points-big { font-size:clamp(24px,7.5vw,30px); font-weight:1000; color:#fff; font-variant-numeric:tabular-nums; line-height:1.1; margin-top:2px; }
+.countdown-sm { font-size:20px; font-weight:900; color:#f2c0dc; font-variant-numeric:tabular-nums; margin-top:4px; }
+.still-line { font-size:14px; font-weight:900; color:#b8ffb0; min-height:18px; margin-top:2px; }
+#imOutBtn.out-small { font-size:17px; padding:12px 16px; min-height:46px; border-radius:18px; box-shadow:0 6px 0 #087317, 0 12px 20px rgba(0,0,0,.35), inset 0 3px 0 rgba(255,255,255,.5); }
 
 .challenge-before {
   margin: 0 auto 12px; padding: 10px 16px;
@@ -547,13 +574,28 @@ input { cursor: text; }
     </header>
     <h1 class="go-title">TIME TO GO!</h1>
     <div id="leaveBy" class="leave-by">Leave by 10:00 AM</div>
-    <div id="phasePill" class="phase-pill">DOUBLE COINS ACTIVE</div>
-    <div id="ring" class="ring" style="--progress:100%">
-      <div class="ring-inner">
-        <span id="ringLabel" class="ring-label">Time left</span>
-        <strong id="countdown" class="countdown">05:00</strong>
-        <span id="rewardNow" class="reward-now">+40 coins</span>
+    <div id="phasePill" class="phase-pill">⚡ BONUS ACTIVE</div>
+    <div id="ringLabel" class="ring-label">YOU'RE LOSING POINTS.</div>
+    <div id="threshold" class="threshold" aria-live="polite"></div>
+    <div id="stage" class="stage">
+      <div class="glass-wrap">
+        <svg viewBox="0 0 200 250" aria-hidden="true">
+          <defs>
+            <clipPath id="topClip"><path d="M30 16 H170 L110 112 V122 H90 V112 Z"/></clipPath>
+          </defs>
+          <rect id="sandTop" class="sand-top" x="20" y="16" width="160" height="100" clip-path="url(#topClip)"/>
+          <circle class="grain g1" cx="100" cy="122" r="3.2"/>
+          <circle class="grain g2" cx="100" cy="122" r="3.2"/>
+          <circle class="grain g3" cx="100" cy="122" r="3.2"/>
+          <text id="lostText" class="lost-text" x="100" y="205">LOST</text>
+          <path class="glass-body" d="M30 16 H170 L110 112 V132 L170 234 H30 L90 132 V112 Z" fill="none"/>
+          <path class="glass-body" d="M24 12 H176 M24 238 H176" fill="none" stroke-linecap="round"/>
+        </svg>
       </div>
+      <div id="rewardNow" class="coins-big">40 COINS</div>
+      <div id="pointsNow" class="points-big">2,400 POINTS</div>
+      <div id="countdown" class="countdown-sm">05:00</div>
+      <div id="stillLine" class="still-line"></div>
     </div>
     <!-- Before-I-leave reminder on challenge screen -->
     <div id="chalBefore" class="challenge-before" hidden>
@@ -561,7 +603,7 @@ input { cursor: text; }
       <span id="chalBeforeText" class="txt"></span>
     </div>
     <!-- Debounced — disabled after first tap until result shown -->
-    <button id="imOutBtn" class="btn-3d btn-green" type="button">I'M OUT! 🚀</button>
+    <button id="imOutBtn" class="btn-3d btn-green out-small" type="button">🚀 I'M OUT!</button>
     <div class="grace-row">
       <button id="chalGrace2Btn" class="grace-btn" type="button">+2 min buffer 🧘</button>
       <button id="chalGrace5Btn" class="grace-btn" type="button">+5 min buffer 🏃</button>
@@ -1042,6 +1084,28 @@ function updateStatusCardCountdown() {
   }
 }
 
+
+// ── DA-01: finer-grained live view of the SAME reward curve ──────────
+// points = exact (unrounded) reward curve x 60. Mirrors reward()'s branches
+// so round(points/60) === reward() at every second (clamped to guarantee it).
+const ALT_LABEL = "DON'T LET THEM GO.";
+const LOSING_LABEL = "YOU'RE LOSING POINTS.";
+function rewardPoints(targetMs, nowMs = Date.now()) {
+  const secEarly = Math.round((targetMs - nowMs) / 1000);
+  let exact;
+  if (secEarly >= 600) exact = 100;
+  else if (secEarly >= 300) exact = 80 + ((secEarly - 300) / 300) * 20;
+  else if (secEarly >= 0) exact = 40 + (secEarly / 300) * 40;
+  else {
+    const lateMin = -secEarly / 60;
+    if (lateMin <= 15) exact = Math.max(15, 40 - (lateMin / 15) * 25);
+    else exact = Math.max(10, 15 - ((lateMin - 15) / 15) * 5);
+  }
+  const coins = reward(targetMs, nowMs);
+  return Math.max(coins * 60 - 29, Math.min(coins * 60 + 29, Math.round(exact * 60)));
+}
+let lastChalSecs = null, lossUntil = 0;
+
 function updateChallenge() {
   if (!state.alarm) return;
 
@@ -1061,14 +1125,39 @@ function updateChallenge() {
   const ss = String(abs % 60).padStart(2, '0');
   const displayTime = hh > 0 ? `${String(hh).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
 
-  $('ringLabel').textContent  = before ? 'Time left · Points dropping!' : 'GO NOW — points diminishing!';
-  $('countdown').textContent  = displayTime;
-  $('rewardNow').textContent  = `+${pts} coins`;
-  $('phasePill').textContent  = coinBonusLabel(targetMs, nowMs);
+  const secEarly = Math.round((targetMs - nowMs) / 1000);
+  const points = rewardPoints(targetMs, nowMs);
+  if (lastChalSecs !== null && lastChalSecs > 0 && secs <= 0 && secEarly <= 0) lossUntil = nowMs + 1500;
+  lastChalSecs = secs;
+  const lossBeat = nowMs < lossUntil;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  $('ring').style.setProperty('--progress', `${progress}%`);
-  // Past departure: ring pulses red urgently (not empty/broken)
-  $('ring').classList.toggle('past', !before);
+  $('ringLabel').textContent  = before ? LOSING_LABEL : 'GO NOW — points diminishing!';
+  $('countdown').textContent  = (before ? '' : '−') + displayTime;
+  $('rewardNow').textContent  = `${pts} COINS`;
+  $('pointsNow').textContent  = `${points.toLocaleString('en-US')} POINTS`;
+  $('phasePill').textContent  = before ? '⚡ BONUS ACTIVE' : coinBonusLabel(targetMs, nowMs);
+
+  // Hourglass: top sand tracks remaining bonus (progress); 100 = full
+  const sandH = 100 * (progress / 100);
+  const sand = $('sandTop');
+  sand.setAttribute('y', String(16 + (100 - sandH)));
+  sand.setAttribute('height', String(sandH + 2));
+  const stage = $('stage');
+  stage.classList.toggle('nosand', !before || reduced);
+  stage.classList.toggle('urgent', before && secs <= 10 && !reduced);
+  stage.classList.toggle('lossbeat', lossBeat && !reduced);
+  stage.classList.toggle('past', !before);
+
+  const th = $('threshold');
+  th.classList.toggle('t10', before && secs <= 10 && !reduced);
+  th.classList.toggle('lossmsg', lossBeat || false);
+  if (lossBeat)            th.textContent = 'BONUS LOST';
+  else if (!before)        th.textContent = '';
+  else if (secs <= 10)     th.textContent = '🔥 10 SECONDS';
+  else if (secs <= 30)     th.textContent = '⚠️ 30 SECONDS';
+  else                     th.textContent = '';
+  $('stillLine').textContent = (!before && !lossBeat) ? `Still +${pts} if you go now` : '';
 
   $('leaveBy').textContent = before
     ? `Leave by ${format24(target)}`
