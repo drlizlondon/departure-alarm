@@ -326,7 +326,6 @@ input { cursor: text; }
 .roll .rf { display:inline-block; height:var(--u); line-height:var(--u); white-space:pre; }
 .convert-line { font-size:16px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums; margin:0 0 12px; min-height:22px; }
 .countdown-sm { font-size:clamp(40px,12vw,52px); font-weight:1000; letter-spacing:-.04em; color:#fff; font-variant-numeric:tabular-nums; line-height:1; text-shadow:0 4px 0 #4b002f; margin-top:2px; }
-.still-line { font-size:14px; font-weight:900; color:#b8ffb0; min-height:18px; margin-top:2px; }
 #imOutBtn.out-small { font-size:17px; padding:12px 16px; min-height:46px; border-radius:18px; box-shadow:0 6px 0 #087317, 0 12px 20px rgba(0,0,0,.35), inset 0 3px 0 rgba(255,255,255,.5); }
 
 .challenge-before {
@@ -593,7 +592,6 @@ input { cursor: text; }
         </div>
       </div>
       <div id="countdown" class="countdown-sm">05:00</div>
-      <div id="stillLine" class="still-line"></div>
     </div>
     <!-- Before-I-leave reminder on challenge screen -->
     <div id="chalBefore" class="challenge-before" hidden>
@@ -1206,7 +1204,6 @@ function updateChallenge() {
   else if (secs <= 10)     th.textContent = '🔥 10 SECONDS';
   else if (secs <= 30)     th.textContent = '⚠️ 30 SECONDS';
   else                     th.textContent = '';
-  $('stillLine').textContent = (!before && !lossBeat) ? `Still +${pts} if you go now` : '';
 
   $('leaveBy').textContent = before ? `Leave by ${format24(target)}` : '';
 
