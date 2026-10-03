@@ -1045,12 +1045,6 @@ function setAlarm() {
   commitAlarm(makeTargetFrom24(h, m));
 }
 
-function setAlarm() {
-  const h = $('hourSelect').value, m = $('minuteSelect').value;
-  if (!h || m === '' || !ampm) { toast('Choose an hour, minute, and AM or PM.'); return; }
-  commitAlarm(makeTargetFromPicker(h, m, ampm));
-}
-
 function setAlarmQuick(mins) {
   commitAlarm(makeTargetFromMins(mins));
 }
