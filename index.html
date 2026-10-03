@@ -313,6 +313,17 @@ input { cursor: text; }
 .threshold.lossmsg { color:#ff5a80; font-size:24px; }
 .coins-big { font-size:14px; font-weight:900; color:var(--yellow); line-height:1.1; }
 .points-big { font-size:clamp(26px,8vw,32px); font-weight:1000; color:#fff; font-variant-numeric:tabular-nums; line-height:1.05; text-shadow:0 3px 0 #4b002f; }
+.ring-inner .ring-label { font-size:9.5px; letter-spacing:.04em; max-width:none; white-space:nowrap; }
+.ring-inner .spiral { width:34%; margin:0; }
+.ring-inner .points-big { font-size:clamp(24px,7vw,28px); }
+.ring-inner .points-ratio { font-size:9.5px; margin-top:0; }
+.ring-inner .coins-big { font-size:13px; }
+.points-base { font-size:clamp(17px,5vw,20px); font-weight:900; color:#fff; opacity:.85; font-variant-numeric:tabular-nums; line-height:1.05; }
+.points-base.dropping { font-size:clamp(26px,8vw,32px); font-weight:1000; opacity:1; text-shadow:0 3px 0 #4b002f; }
+.bonus-block { display:flex; flex-direction:column; align-items:center; }
+.bonus-block[hidden] { display:none; }
+.bonus-lbl { color: var(--yellow); }
+.bonus-block .points-big { color: var(--yellow); }
 .points-ratio { font-size:11px; font-weight:800; color:var(--muted); line-height:1.1; margin-top:2px; }
 .convert-line { font-size:16px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums; margin:0 0 12px; min-height:22px; }
 .countdown-sm { font-size:clamp(40px,12vw,52px); font-weight:1000; letter-spacing:-.04em; color:#fff; font-variant-numeric:tabular-nums; line-height:1; text-shadow:0 4px 0 #4b002f; margin-top:2px; }
@@ -573,8 +584,12 @@ input { cursor: text; }
     <div id="stage" class="stage">
       <div id="ring" class="ring" style="--progress:100%">
         <div class="ring-inner">
-          <div id="ringLabel" class="ring-label">BONUS POINTS AVAILABLE</div>
-          <div id="pointsNow" class="points-big">2,400</div>
+          <div id="ringLabel" class="ring-label">✓ ON-TIME POINTS</div>
+          <div id="pointsNow" class="points-base">4,000</div>
+          <div id="bonusBlock" class="bonus-block">
+            <div id="bonusLbl" class="ring-label bonus-lbl">EARLY BONUS</div>
+            <div id="bonusNow" class="points-big">+2,000</div>
+          </div>
           <svg id="spiral" class="spiral" viewBox="0 0 100 100" aria-hidden="true">
             <path id="spiralTrack" class="sp-track" d=""/>
             <path id="spiralFill" class="sp-fill" d=""/>
@@ -1075,6 +1090,20 @@ function updateStatusCardCountdown() {
 // branches so round(points/POINTS_PER_COIN) === reward() at every second
 // (clamped to guarantee it). DA-04: change the one constant to retune the ratio.
 const POINTS_PER_COIN = 100;
+// DA-05: fixed on-time part of the reward (reward() at target === 40 coins).
+const ON_TIME_COINS = 40;
+console.assert(reward(1000, 1000) === ON_TIME_COINS, 'DA-05: reward() at target must equal ON_TIME_COINS');
+function splitPoints(targetMs, nowMs) {
+  const total = rewardPoints(targetMs, nowMs);
+  const secEarly = Math.round((targetMs - nowMs) / 1000);
+  if (secEarly < 0) return { total, base: total, bonus: 0 };
+  const base = ON_TIME_COINS * POINTS_PER_COIN;
+  return { total, base, bonus: Math.max(0, total - base) };
+}
+// bonus available at the moment the alarm's countdown began (secEarly = totalSec)
+function maxBonusPts(totalSec) {
+  return Math.max(1, splitPoints(totalSec * 1000, 0).bonus);
+}
 function rewardPoints(targetMs, nowMs = Date.now()) {
   const secEarly = Math.round((targetMs - nowMs) / 1000);
   let exact;
@@ -1106,9 +1135,9 @@ function initSpiral() {
   spiralLen = $('spiralTrack').getTotalLength();
   $('spiralFill').setAttribute('stroke-dasharray', `${spiralLen.toFixed(2)} ${(spiralLen * 2).toFixed(2)}`);
 }
-function updateSpiral(progress, before, urgent) {
+function updateSpiral(frac, before, urgent) {
   if (!spiralLen) initSpiral();
-  const frac = before ? Math.max(0, Math.min(1, progress / 100)) : 0;
+  frac = before ? Math.max(0, Math.min(1, frac)) : 0;
   const gone = spiralLen * (1 - frac);           // length already drained from the outer end
   $('spiralFill').setAttribute('stroke-dashoffset', (-gone).toFixed(2));
   const p = $('spiralTrack').getPointAtLength(Math.min(gone, spiralLen));
@@ -1138,22 +1167,26 @@ function updateChallenge() {
   const displayTime = hh > 0 ? `${String(hh).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
 
   const secEarly = Math.round((targetMs - nowMs) / 1000);
-  const points = rewardPoints(targetMs, nowMs);
+  const sp = splitPoints(targetMs, nowMs);
+  const bonusFrac = sp.bonus / maxBonusPts(total);
   if (lastChalSecs !== null && lastChalSecs > 0 && secs <= 0 && secEarly <= 0) lossUntil = nowMs + 1500;
   lastChalSecs = secs;
   const lossBeat = nowMs < lossUntil;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  $('ringLabel').textContent  = before ? 'BONUS POINTS AVAILABLE' : 'GO NOW — BONUS FADING';
+  $('ringLabel').textContent  = before ? '✓ ON-TIME POINTS' : 'ON-TIME POINTS (dropping)';
   $('countdown').textContent  = (before ? '' : '−') + displayTime;
   $('rewardNow').textContent  = `${pts} coins`;
-  $('pointsNow').textContent  = points.toLocaleString('en-US');
+  $('pointsNow').textContent  = sp.base.toLocaleString('en-US');
+  $('pointsNow').classList.toggle('dropping', !before);
+  $('bonusBlock').hidden      = !before;
+  $('bonusNow').textContent   = '+' + sp.bonus.toLocaleString('en-US');
   $('pointsRatio').textContent = `${POINTS_PER_COIN.toLocaleString('en-US')} points = 1 coin`;
   $('phasePill').textContent  = before ? '⚡ BONUS ACTIVE' : coinBonusLabel(targetMs, nowMs);
 
   $('ring').style.setProperty('--progress', `${progress}%`);
   $('ring').classList.toggle('past', !before);
-  updateSpiral(progress, before, before && secs <= 10);
+  updateSpiral(bonusFrac, before, before && secs <= 10);
 
   const th = $('threshold');
   th.classList.toggle('t10', before && secs <= 10 && !reduced);
@@ -1212,9 +1245,11 @@ function updateStreak(now) {
 // ═══════════════════════════════════════════════════════════════════
 // DA-04: points visibly turn into coins (<=1.1 s count-up; static if reduced motion)
 let convertTimer = null;
-function playConvert(points, coins) {
+function playConvert(points, coins, basePts, bonusPts) {
   const el = $('convertLine');
-  const fmt = (p, c) => `${p.toLocaleString('en-US')} points → +${c} coins`;
+  const nf = n => n.toLocaleString('en-US');
+  const prefix = bonusPts > 0 ? `${nf(basePts)} on time + ${nf(bonusPts)} early bonus = ` : '';
+  const fmt = (p, c) => `${prefix}${nf(p)} points → +${c} coins`;
   clearInterval(convertTimer);
   el.dataset.final = fmt(points, coins);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = el.dataset.final; return; }
@@ -1248,7 +1283,7 @@ function complete() {
   const nowMs    = now.getTime();
   const diff     = (nowMs - targetMs) / 60000; // in minutes (negative = early, positive = late)
   const base     = reward(targetMs, nowMs);
-  const tapPoints = rewardPoints(targetMs, nowMs); // DA-04: captured at the same instant as base
+  const tapSplit = splitPoints(targetMs, nowMs); const tapPoints = tapSplit.total; // DA-04: captured at the same instant as base
 
   updateStreak(now);
 
@@ -1285,7 +1320,7 @@ function complete() {
     : 'You completed the Journey! 🌕';
 
   show('result');
-  playConvert(tapPoints, base);
+  playConvert(tapPoints, base, tapSplit.base, tapSplit.bonus);
   launchCoins(total);
   playCoinCascade();
   render();
