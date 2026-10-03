@@ -320,7 +320,7 @@ input { cursor: text; }
 /* DA-06: rolling digits (web equivalent of numericText) */
 .roll { display:inline-flex; vertical-align:bottom; font-variant-numeric:tabular-nums; --u:1.2em; }
 .roll .rd { display:inline-block; width:1ch; height:var(--u); line-height:var(--u); overflow:hidden; position:relative; }
-.roll .rs { display:block; transition:transform .35s ease-out; }
+.roll .rs { display:block; transition:transform .55s cubic-bezier(.2,.9,.3,1.15); }
 .roll .rs.nt { transition:none; }
 .roll .rs > i { display:block; font-style:normal; height:var(--u); line-height:var(--u); text-align:center; }
 .roll .rf { display:inline-block; height:var(--u); line-height:var(--u); white-space:pre; }
@@ -1145,6 +1145,13 @@ function rollNumber(el, value, opts) {
   el._roll = { str, nodes };
 }
 
+// DA-10: plain (non-rolling) number; clears any leftover roll markup
+function plainNumber(el, value) {
+  if (el._roll) { el._roll = null; el.classList.remove('roll'); el.removeAttribute('aria-label'); el.removeAttribute('role'); }
+  const t = Number(value).toLocaleString('en-US');
+  if (el.textContent !== t) el.textContent = t;
+}
+
 let lastChalSecs = null, lossUntil = 0;
 
 function updateChallenge() {
@@ -1175,10 +1182,10 @@ function updateChallenge() {
 
   $('ringLabel').textContent  = before ? '✓ ON-TIME POINTS' : 'LATE POINTS';
   $('countdown').textContent  = (before ? '' : '−') + displayTime;
-  rollNumber($('sumCoins'), pts);
+  plainNumber($('sumCoins'), pts);
   $('sumSuffix').textContent  = before ? ' coins if you leave now' : ' coins if you go now';
   const tier1 = !before && (-secEarly) <= LATE_TIER_1_SEC;
-  rollNumber($('pointsNow'), sp.base);
+  plainNumber($('pointsNow'), sp.base);
   $('pointsNow').classList.toggle('dropping', !before);
   $('bonusBlock').hidden      = !before;
   rollNumber($('bonusNow'), sp.bonus, { prefix:'+' });
