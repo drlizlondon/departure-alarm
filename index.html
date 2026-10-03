@@ -313,6 +313,8 @@ input { cursor: text; }
 .threshold.lossmsg { color:#ff5a80; font-size:24px; }
 .coins-big { font-size:14px; font-weight:900; color:var(--yellow); line-height:1.1; }
 .points-big { font-size:clamp(26px,8vw,32px); font-weight:1000; color:#fff; font-variant-numeric:tabular-nums; line-height:1.05; text-shadow:0 3px 0 #4b002f; }
+.points-ratio { font-size:11px; font-weight:800; color:var(--muted); line-height:1.1; margin-top:2px; }
+.convert-line { font-size:16px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums; margin:0 0 12px; min-height:22px; }
 .countdown-sm { font-size:clamp(40px,12vw,52px); font-weight:1000; letter-spacing:-.04em; color:#fff; font-variant-numeric:tabular-nums; line-height:1; text-shadow:0 4px 0 #4b002f; margin-top:2px; }
 .still-line { font-size:14px; font-weight:900; color:#b8ffb0; min-height:18px; margin-top:2px; }
 #imOutBtn.out-small { font-size:17px; padding:12px 16px; min-height:46px; border-radius:18px; box-shadow:0 6px 0 #087317, 0 12px 20px rgba(0,0,0,.35), inset 0 3px 0 rgba(255,255,255,.5); }
@@ -579,6 +581,7 @@ input { cursor: text; }
             <circle id="spiralHead" class="sp-head" r="3" cx="50" cy="50"/>
           </svg>
           <div id="rewardNow" class="coins-big">40 coins</div>
+          <div id="pointsRatio" class="points-ratio"></div>
         </div>
       </div>
       <div id="countdown" class="countdown-sm">05:00</div>
@@ -601,6 +604,7 @@ input { cursor: text; }
   <section id="result" class="screen result">
     <p class="result-kicker">YOU'RE OUT!</p>
     <div id="resultTier" class="result-tier">NAILED IT! ⭐</div>
+    <div id="convertLine" class="convert-line" aria-live="polite"></div>
     <p id="resultMsg" class="result-msg"></p>
     <div class="reward-box">
       <span class="lbl">Journey coins earned</span>
@@ -1067,8 +1071,10 @@ function updateStatusCardCountdown() {
 
 
 // ── DA-01: finer-grained live view of the SAME reward curve ──────────
-// points = exact (unrounded) reward curve x 60. Mirrors reward()'s branches
-// so round(points/60) === reward() at every second (clamped to guarantee it).
+// points = exact (unrounded) reward curve x POINTS_PER_COIN. Mirrors reward()'s
+// branches so round(points/POINTS_PER_COIN) === reward() at every second
+// (clamped to guarantee it). DA-04: change the one constant to retune the ratio.
+const POINTS_PER_COIN = 100;
 function rewardPoints(targetMs, nowMs = Date.now()) {
   const secEarly = Math.round((targetMs - nowMs) / 1000);
   let exact;
@@ -1081,7 +1087,9 @@ function rewardPoints(targetMs, nowMs = Date.now()) {
     else exact = Math.max(10, 15 - ((lateMin - 15) / 15) * 5);
   }
   const coins = reward(targetMs, nowMs);
-  return Math.max(coins * 60 - 29, Math.min(coins * 60 + 29, Math.round(exact * 60)));
+  const half = Math.ceil(POINTS_PER_COIN / 2) - 1;
+  const mid = coins * POINTS_PER_COIN;
+  return Math.max(mid - half, Math.min(mid + half, Math.round(exact * POINTS_PER_COIN)));
 }
 let lastChalSecs = null, lossUntil = 0;
 
@@ -1140,6 +1148,7 @@ function updateChallenge() {
   $('countdown').textContent  = (before ? '' : '−') + displayTime;
   $('rewardNow').textContent  = `${pts} coins`;
   $('pointsNow').textContent  = points.toLocaleString('en-US');
+  $('pointsRatio').textContent = `${POINTS_PER_COIN.toLocaleString('en-US')} points = 1 coin`;
   $('phasePill').textContent  = before ? '⚡ BONUS ACTIVE' : coinBonusLabel(targetMs, nowMs);
 
   $('ring').style.setProperty('--progress', `${progress}%`);
@@ -1201,6 +1210,23 @@ function updateStreak(now) {
 // ═══════════════════════════════════════════════════════════════════
 //  COMPLETE DEPARTURE
 // ═══════════════════════════════════════════════════════════════════
+// DA-04: points visibly turn into coins (<=1.1 s count-up; static if reduced motion)
+let convertTimer = null;
+function playConvert(points, coins) {
+  const el = $('convertLine');
+  const fmt = (p, c) => `${p.toLocaleString('en-US')} points → +${c} coins`;
+  clearInterval(convertTimer);
+  el.dataset.final = fmt(points, coins);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = el.dataset.final; return; }
+  const t0 = performance.now(), dur = 1100;
+  const step = () => {
+    const k = Math.min(1, (performance.now() - t0) / dur);
+    el.textContent = k >= 1 ? el.dataset.final : fmt(Math.round(points * (1 - k)), Math.round(coins * k));
+    if (k >= 1) clearInterval(convertTimer);
+  };
+  step(); convertTimer = setInterval(step, 40);
+}
+
 let imOutLocked = false; // debounce — prevents double-tap rewarding
 
 function complete() {
@@ -1222,6 +1248,7 @@ function complete() {
   const nowMs    = now.getTime();
   const diff     = (nowMs - targetMs) / 60000; // in minutes (negative = early, positive = late)
   const base     = reward(targetMs, nowMs);
+  const tapPoints = rewardPoints(targetMs, nowMs); // DA-04: captured at the same instant as base
 
   updateStreak(now);
 
@@ -1258,6 +1285,7 @@ function complete() {
     : 'You completed the Journey! 🌕';
 
   show('result');
+  playConvert(tapPoints, base);
   launchCoins(total);
   playCoinCascade();
   render();
