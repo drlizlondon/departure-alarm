@@ -298,15 +298,10 @@ input { cursor: text; }
 .countdown { font-size: clamp(58px,17vw,78px); font-weight: 1000; letter-spacing: -.07em; line-height: .96; text-shadow: 0 5px 0 #4b002f; }
 .reward-now { color: var(--yellow); font-size: 20px; font-weight: 1000; }
 
-/* ── DA-03 ring + continuous draining spiral ───────────────────── */
+/* ── DA-03 ring + living vortex (DA-07) ───────────────────── */
 .stage { display:flex; flex-direction:column; align-items:center; margin:0 auto 6px; width:100%; }
 .ring-inner { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; overflow:hidden; }
-.spiral { width:46%; aspect-ratio:1; display:block; overflow:visible; margin:2px 0; }
-.spiral .sp-track { fill:none; stroke:var(--yellow); stroke-opacity:.16; stroke-width:4; stroke-linecap:round; }
-.spiral .sp-fill { fill:none; stroke:var(--yellow); stroke-width:4; stroke-linecap:round; filter: drop-shadow(0 0 5px rgba(255,216,76,.7)); transition: stroke-dashoffset .9s linear, opacity .3s; }
-.spiral .sp-head { fill:#fff; stroke:var(--yellow); stroke-width:1.6; filter: drop-shadow(0 0 4px var(--yellow)) drop-shadow(0 0 8px var(--yellow)); transition: cx .9s linear, cy .9s linear, opacity .3s; }
-.spiral.urgent .sp-fill, .spiral.urgent .sp-head { stroke:#ff9a3d; }
-.spiral.empty .sp-fill, .spiral.empty .sp-head { opacity:0; }
+.vortex { width:46%; aspect-ratio:1; display:block; margin:2px 0; }
 .threshold { min-height:26px; font-size:18px; font-weight:1000; letter-spacing:.05em; color:#ffb347; margin:2px 0 0; }
 .threshold.t10 { color:#ff5a80; animation: hgPulse .8s ease-in-out infinite; display:inline-block; }
 @keyframes hgPulse { 50% { transform:scale(1.06); } }
@@ -314,7 +309,7 @@ input { cursor: text; }
 .coins-big { font-size:14px; font-weight:900; color:var(--yellow); line-height:1.1; }
 .points-big { font-size:clamp(26px,8vw,32px); font-weight:1000; color:#fff; font-variant-numeric:tabular-nums; line-height:1.05; text-shadow:0 3px 0 #4b002f; }
 .ring-inner .ring-label { font-size:9.5px; letter-spacing:.04em; max-width:none; white-space:nowrap; }
-.ring-inner .spiral { width:34%; margin:0; }
+.ring-inner .vortex { width:34%; margin:0; }
 .ring-inner .points-big { font-size:clamp(24px,7vw,28px); }
 .ring-inner .points-ratio { font-size:9.5px; margin-top:0; }
 .ring-inner .coins-big { font-size:13px; }
@@ -597,11 +592,7 @@ input { cursor: text; }
             <div id="bonusLbl" class="ring-label bonus-lbl">EARLY BONUS</div>
             <div id="bonusNow" class="points-big">+2,000</div>
           </div>
-          <svg id="spiral" class="spiral" viewBox="0 0 100 100" aria-hidden="true">
-            <path id="spiralTrack" class="sp-track" d=""/>
-            <path id="spiralFill" class="sp-fill" d=""/>
-            <circle id="spiralHead" class="sp-head" r="3" cx="50" cy="50"/>
-          </svg>
+          <canvas id="vortex" class="vortex" aria-hidden="true"></canvas>
           <div id="rewardNow" class="coins-big">40 coins</div>
           <div id="pointsRatio" class="points-ratio"></div>
         </div>
@@ -870,6 +861,7 @@ function show(id) {
   $('alarmBar').hidden = !showBar;
   if (id === 'journey') renderJourney();
   if (id === 'stats')   renderStats();
+  VORTEX.sync();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1173,30 +1165,260 @@ function rollNumber(el, value, opts) {
 
 let lastChalSecs = null, lossUntil = 0;
 
-// DA-03: one continuous spiral that drains outer end -> centre
-let spiralLen = 0;
-function initSpiral() {
-  const turns = 2.75, r0 = 44, r1 = 5, steps = 160;
-  let d = '';
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps, a = t * turns * 2 * Math.PI - Math.PI / 2, r = r0 + (r1 - r0) * t;
-    d += (i ? 'L' : 'M') + (50 + r * Math.cos(a)).toFixed(2) + ' ' + (50 + r * Math.sin(a)).toFixed(2);
+// DA-07: living vortex (canvas) replaces the DA-03 SVG spiral.
+// Water down a plughole / slow galaxy: log-spiral arms rotate (which also reads as
+// inward flow), gold grains ride the arms inward and fade at the centre. Density and
+// brightness follow the bonus fraction; the outer region empties first.
+const VORTEX = (() => {
+  const cv = $('vortex'), ctx = cv.getContext('2d');
+  const reducedMQ = matchMedia('(prefers-reduced-motion: reduce)');
+  const N = 520, NARM = 10, NHAIR = 18, NS = 44, NSH = 36, LV = 8;
+  const K = 1.25, KH = 0.9, RMIN = 0.045, TAU = Math.PI * 2;
+  // preallocated typed arrays: nothing is allocated inside the frame loop
+  const gr = new Float32Array(N), gv = new Float32Array(N), gs = new Float32Array(N);
+  const gj = new Float32Array(N), gp = new Float32Array(N);
+  const garm = new Uint8Array(N), galive = new Uint8Array(N);
+  const armOff = new Float32Array(NARM), hairOff = new Float32Array(NHAIR);
+  const rS = new Float32Array(NS + 1), lnS = new Float32Array(NS + 1);
+  const rH = new Float32Array(NSH + 1), lnH = new Float32Array(NSH + 1);
+  const aS = new Float32Array(NS + 1), aH = new Float32Array(NSH + 1);
+  const px = new Float32Array(NARM * (NS + 1) * 2), hx = new Float32Array(NHAIR * (NSH + 1) * 2);
+  for (let i = 0; i < NARM; i++) armOff[i] = i / NARM * TAU;
+  for (let i = 0; i < NHAIR; i++) hairOff[i] = i / NHAIR * TAU + 0.17;
+  for (let j = 0; j <= NS; j++)  { rS[j] = Math.pow(RMIN, 1 - j / NS);  lnS[j] = Math.log(1 / rS[j]); }
+  for (let j = 0; j <= NSH; j++) { rH[j] = Math.pow(RMIN, 1 - j / NSH); lnH[j] = Math.log(1 / rH[j]); }
+  for (let i = 0; i < N; i++) {
+    garm[i] = i % NARM; gv[i] = 0.7 + Math.random() * 0.6; gs[i] = 0.6 + Math.random() * 1.0;
+    gj[i] = (Math.random() - 0.5) * 0.12; gp[i] = Math.random() * TAU;
   }
-  ['spiralTrack', 'spiralFill'].forEach(id => $(id).setAttribute('d', d));
-  spiralLen = $('spiralTrack').getTotalLength();
-  $('spiralFill').setAttribute('stroke-dasharray', `${spiralLen.toFixed(2)} ${(spiralLen * 2).toFixed(2)}`);
-}
-function updateSpiral(frac, before, urgent) {
-  if (!spiralLen) initSpiral();
-  frac = before ? Math.max(0, Math.min(1, frac)) : 0;
-  const gone = spiralLen * (1 - frac);           // length already drained from the outer end
-  $('spiralFill').setAttribute('stroke-dashoffset', (-gone).toFixed(2));
-  const p = $('spiralTrack').getPointAtLength(Math.min(gone, spiralLen));
-  $('spiralHead').setAttribute('cx', p.x.toFixed(2));
-  $('spiralHead').setAttribute('cy', p.y.toFixed(2));
-  $('spiral').classList.toggle('urgent', urgent);
-  $('spiral').classList.toggle('empty', frac <= 0.002);
-}
+  const ss = (a, b, x) => { x = (x - a) / (b - a); x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  // palettes (gold at the rim -> warm rose at the heart; ember -> hot pink when urgent), LV urgency levels
+  const armCol = [], hairCol = [], sprites = [];
+  const GOLD = [255, 216, 76], ROSE = [255, 176, 214], EMB = [255, 154, 61], HOT = [255, 92, 120];
+  for (let u = 0; u < LV; u++) {
+    const m = u / (LV - 1), o = [], h = [];
+    for (let j = 0; j <= NS; j++) {
+      const t = j / NS, c = [0, 1, 2].map(k => Math.round(lerp(lerp(ROSE[k], HOT[k], m), lerp(GOLD[k], EMB[k], m), t)));
+      o.push(`rgb(${c[0]},${c[1]},${c[2]})`);
+    }
+    for (let j = 0; j <= NSH; j++) {
+      const t = j / NSH, c = [0, 1, 2].map(k => Math.round(lerp(lerp(ROSE[k], HOT[k], m), lerp(GOLD[k], EMB[k], m), t)));
+      h.push(`rgb(${c[0]},${c[1]},${c[2]})`);
+    }
+    armCol.push(o); hairCol.push(h);
+    const sp = document.createElement('canvas'); sp.width = sp.height = 32;
+    const sc = sp.getContext('2d'), g = sc.createRadialGradient(16, 16, 0, 16, 16, 16);
+    const c = [0, 1, 2].map(k => Math.round(lerp(GOLD[k], EMB[k], m)));
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.18, `rgba(${c[0]},${c[1]},${c[2]},.95)`);
+    g.addColorStop(0.5, `rgba(${c[0]},${c[1]},${c[2]},.28)`);
+    g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    sc.fillStyle = g; sc.fillRect(0, 0, 32, 32);
+    sprites.push(sp);
+  }
+  const core = document.createElement('canvas'); core.width = core.height = 64;
+  { const cc = core.getContext('2d'), g = cc.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,240,200,1)'); g.addColorStop(0.3, 'rgba(255,200,120,.45)'); g.addColorStop(1, 'rgba(255,170,90,0)');
+    cc.fillStyle = g; cc.fillRect(0, 0, 64, 64); }
+
+  const S = {
+    w: 0, h: 0, active: false, rafId: 0, last: 0,
+    target: 0, frac: 0, urg: 0, urgTarget: 0, before: false, rot: 0, speed: 0.15,
+    lossAt: 0, primed: false, frames: 0, busyMs: 0, rafStarts: 0
+  };
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return false;
+    const bw = Math.round(w * dpr), bh = Math.round(h * dpr);
+    if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+    ctx.setTransform(bw / w, 0, 0, bh / h, 0, 0);
+    S.w = w; S.h = h;
+    return true;
+  }
+
+  function rmaxOf(f) { return 0.3 + 0.7 * f; }
+  // a thin trickle (>= 5%) always remains while the bonus is live, so the final drain at 0 is visible
+  function activeOf(f) { return S.before ? Math.floor(N * (0.05 + 0.95 * Math.pow(f, 0.75))) : 0; }
+
+  function prime() {
+    const act = activeOf(S.frac), rm = rmaxOf(S.frac);
+    for (let i = 0; i < N; i++) {
+      if (i < act) { galive[i] = 1; gr[i] = RMIN + (rm - RMIN) * Math.sqrt(Math.random()); }
+      else galive[i] = 0;
+    }
+    S.primed = true;
+  }
+
+  function step(dt, now) {
+    const lossT = S.lossAt ? (now - S.lossAt) / 1000 : -1;
+    const losing = lossT >= 0;
+    // eased state
+    const k = 1 - Math.exp(-dt / 0.55);
+    if (!losing || lossT > 1.3) S.frac += (S.target - S.frac) * k;   // hold the swirl while it drains at 0
+    S.urg += (S.urgTarget - S.urg) * (1 - Math.exp(-dt / 0.5));
+    const f = S.frac;
+    const f3 = (1 - f) * (1 - f) * (1 - f);
+    const wantRev = S.before && !losing ? 0.15 + 0.20 * f3 : (losing && lossT < 1.3 ? 0.35 : 0.04);
+    S.speed += (wantRev - S.speed) * (1 - Math.exp(-dt / (losing && lossT < 1.3 ? 0.4 : 0.9)));
+    S.rot += S.speed * TAU * dt;
+    if (S.rot > TAU * 1000) S.rot -= TAU * 1000; // keep precision on very long sessions
+    // grains
+    const act = losing ? 0 : activeOf(f), rm = rmaxOf(f);
+    const acc = losing ? 1 + 40 * Math.pow(Math.min(lossT, 1.3) / 1.2, 2) : 1;
+    const base = 0.07 * dt * acc;
+    for (let i = 0; i < N; i++) {
+      if (galive[i]) {
+        const r = gr[i] - gv[i] * base * (1 + 1.5 * (1 - gr[i]));
+        if (r < 0.03) {
+          if (i < act) { gr[i] = rm * (0.95 + 0.05 * Math.random()); } else galive[i] = 0;
+        } else gr[i] = r;
+      } else if (i < act && Math.random() < 0.06) {
+        galive[i] = 1; gr[i] = rm * (0.95 + 0.05 * Math.random());
+      }
+    }
+  }
+
+  function draw(now) {
+    const w = S.w, h = S.h, R = Math.min(w, h) / 2, cx = w / 2, cy = h / 2;
+    ctx.clearRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'lighter';
+    const f = S.frac, lossT = S.lossAt ? (now - S.lossAt) / 1000 : -1;
+    const lossFade = lossT >= 0 ? 1 - ss(0.8, 1.2, lossT) : 1;
+    const u = Math.max(0, Math.min(LV - 1, Math.round(S.urg * (LV - 1))));
+    const rm = rmaxOf(f), rot = S.rot;
+    const bright = 0.45 + 0.55 * f;
+
+    // faint core glow
+    const pulse = 0.5 + 0.5 * Math.sin(now / 900);
+    const cs = R * (0.5 + 0.25 * f + 0.05 * pulse) * 2;
+    ctx.globalAlpha = (0.08 + 0.34 * f) * (0.85 + 0.15 * pulse);
+    ctx.drawImage(core, cx - cs / 2, cy - cs / 2, cs, cs);
+
+    // arm alphas per radial station (outer region empties first as f falls)
+    for (let j = 0; j <= NS; j++) {
+      const r = rS[j], drain = ss(rm + 0.25, rm - 0.15, r) ;
+      aS[j] = ss(0.05, 0.28, r) * (1 - ss(0.86, 1.0, r)) * (0.07 + 0.30 * f * (0.15 + 0.85 * drain));
+    }
+    for (let j = 0; j <= NSH; j++) {
+      const r = rH[j], drain = ss(rm + 0.25, rm - 0.15, r);
+      aH[j] = ss(0.05, 0.3, r) * (1 - ss(0.86, 1.0, r)) * (0.035 + 0.13 * f * (0.15 + 0.85 * drain));
+    }
+    // main arms
+    let n = 0;
+    for (let i = 0; i < NARM; i++) for (let j = 0; j <= NS; j++) {
+      const a = armOff[i] - rot + K * lnS[j], r = rS[j] * R;
+      px[n++] = cx + r * Math.cos(a); px[n++] = cy + r * Math.sin(a);
+    }
+    ctx.lineWidth = 1.15; ctx.lineCap = 'round';
+    const row = (NS + 1) * 2;
+    for (let j = 0; j < NS; j++) {
+      const al = (aS[j] + aS[j + 1]) * 0.5;
+      if (al < 0.004) continue;
+      ctx.globalAlpha = al; ctx.strokeStyle = armCol[u][j];
+      ctx.beginPath();
+      for (let i = 0; i < NARM; i++) {
+        const o = i * row + j * 2;
+        ctx.moveTo(px[o], px[o + 1]); ctx.lineTo(px[o + 2], px[o + 3]);
+      }
+      ctx.stroke();
+    }
+    // hair arms (finer, counter-pitched, slightly slower: parallax depth)
+    n = 0;
+    const hrot = rot * 0.8;
+    for (let i = 0; i < NHAIR; i++) for (let j = 0; j <= NSH; j++) {
+      const a = hairOff[i] - hrot + KH * lnH[j], r = rH[j] * R;
+      hx[n++] = cx + r * Math.cos(a); hx[n++] = cy + r * Math.sin(a);
+    }
+    ctx.lineWidth = 0.6;
+    const hrow = (NSH + 1) * 2;
+    for (let j = 0; j < NSH; j++) {
+      const al = (aH[j] + aH[j + 1]) * 0.5;
+      if (al < 0.003) continue;
+      ctx.globalAlpha = al; ctx.strokeStyle = hairCol[u][j];
+      ctx.beginPath();
+      for (let i = 0; i < NHAIR; i++) {
+        const o = i * hrow + j * 2;
+        ctx.moveTo(hx[o], hx[o + 1]); ctx.lineTo(hx[o + 2], hx[o + 3]);
+      }
+      ctx.stroke();
+    }
+    // grains
+    const spr = sprites[u], t = now / 1000;
+    for (let i = 0; i < N; i++) {
+      if (!galive[i]) continue;
+      const r = gr[i];
+      let a = ss(0.03, 0.22, r) * (1 - ss(0.88, 1.0, r)) * ss(rm + 0.08, rm - 0.07, r) * bright * lossFade;
+      if (a < 0.01) continue;
+      a *= 0.8 + 0.2 * Math.sin(t * 2.3 + gp[i]);
+      const ang = armOff[garm[i]] - rot + K * Math.log(1 / (r < RMIN ? RMIN : r)) + gj[i] / (r + 0.25);
+      const rr = r * R, sz = gs[i] * (0.55 + 0.45 * Math.min(1, r * 2.2)) * 3.0;
+      ctx.globalAlpha = a > 1 ? 1 : a;
+      ctx.drawImage(spr, cx + rr * Math.cos(ang) - sz / 2, cy + rr * Math.sin(ang) - sz / 2, sz, sz);
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function frame(ts) {
+    S.rafId = 0;
+    if (!S.active) return;
+    const t0 = performance.now();
+    const now = ts || t0;
+    let dt = S.last ? (now - S.last) / 1000 : 0.016;
+    S.last = now; if (dt > 0.05) dt = 0.05;
+    if (S.w !== cv.clientWidth || !S.w) resize();
+    if (S.w) {
+      if (!S.primed) prime();
+      step(dt, now); draw(now);
+    }
+    S.frames++; S.busyMs += performance.now() - t0;
+    S.rafId = requestAnimationFrame(frame);
+  }
+
+  // one static detailed frame (reduced motion, or a paused screen being refreshed)
+  function drawStatic() {
+    if (!resize()) return;
+    S.frac = S.target; S.urg = S.urgTarget;
+    S.speed = 0; if (!S.primed) prime();
+    const act = activeOf(S.frac), rm = rmaxOf(S.frac);
+    for (let i = 0; i < N; i++) {                 // density reflects the fraction
+      if (i < act) { if (!galive[i] || gr[i] > rm) { galive[i] = 1; gr[i] = RMIN + (rm - RMIN) * Math.sqrt((i * 0.61803) % 1); } }
+      else galive[i] = 0;
+    }
+    draw(1000);
+  }
+
+  // run the rAF loop only while the challenge screen is visible and the tab is foregrounded
+  function sync() {
+    const on = $('challenge').classList.contains('active') && !document.hidden;
+    if (on && !reducedMQ.matches) {
+      if (!S.active) { S.active = true; S.last = 0; resize(); S.rafStarts++; }
+      if (!S.rafId) S.rafId = requestAnimationFrame(frame);
+    } else {
+      S.active = false;
+      if (S.rafId) { cancelAnimationFrame(S.rafId); S.rafId = 0; }
+      if (on && reducedMQ.matches) drawStatic();
+    }
+  }
+
+  function update(frac, before, urgent, lossBeat) {
+    frac = before ? Math.max(0, Math.min(1, frac)) : 0;
+    if (before && !S.before) { S.lossAt = 0; S.primed = false; S.frac = frac; }
+    if (!before && S.before && !lossBeat) S.lossAt = 0;
+    S.before = before;
+    if (lossBeat && !S.lossAt) S.lossAt = performance.now();
+    S.target = frac; S.urgTarget = urgent ? 1 : 0;
+    if (reducedMQ.matches) { if (lossBeat) S.target = 0; if ($('challenge').classList.contains('active')) { sync(); } }
+    else if (!S.active) { sync(); }
+  }
+
+  document.addEventListener('visibilitychange', sync);
+  reducedMQ.addEventListener && reducedMQ.addEventListener('change', sync);
+  if (window.ResizeObserver) new ResizeObserver(() => { if (S.active) resize(); else if (reducedMQ.matches && $('challenge').classList.contains('active')) drawStatic(); }).observe(cv);
+  return { update, sync, state: S };
+})();
 
 function updateChallenge() {
   if (!state.alarm) return;
@@ -1237,7 +1459,7 @@ function updateChallenge() {
 
   $('ring').style.setProperty('--progress', `${progress}%`);
   $('ring').classList.toggle('past', !before);
-  updateSpiral(bonusFrac, before, before && secs <= 10);
+  VORTEX.update(bonusFrac, before, before && secs <= 10, lossBeat);
 
   const th = $('threshold');
   th.classList.toggle('t10', before && secs <= 10 && !reduced);
