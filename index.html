@@ -298,19 +298,15 @@ input { cursor: text; }
 .countdown { font-size: clamp(58px,17vw,78px); font-weight: 1000; letter-spacing: -.07em; line-height: .96; text-shadow: 0 5px 0 #4b002f; }
 .reward-now { color: var(--yellow); font-size: 20px; font-weight: 1000; }
 
-/* ── DA-02 ring + spiral maze ───────────────────────────────────── */
+/* ── DA-03 ring + continuous draining spiral ───────────────────── */
 .stage { display:flex; flex-direction:column; align-items:center; margin:0 auto 6px; width:100%; }
 .ring-inner { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; overflow:hidden; }
-.maze { width:46%; aspect-ratio:1; display:block; overflow:visible; filter: drop-shadow(0 0 8px rgba(255,216,76,.35)); margin:2px 0; }
-.maze .wall { fill:none; stroke:#ffd0ea; stroke-opacity:.55; stroke-width:9.4; stroke-linecap:round; }
-.maze .track { fill:none; stroke:#3a0029; stroke-width:6.4; stroke-linecap:round; }
-.maze .left { fill:none; stroke:var(--yellow); stroke-width:3.4; stroke-linecap:round; opacity:.95; }
-.maze .dot { fill:#fff; stroke:var(--yellow); stroke-width:2; filter: drop-shadow(0 0 4px var(--yellow)) drop-shadow(0 0 8px var(--yellow)); }
-.maze.urgent .left { stroke:#ff9a3d; } .maze.urgent .dot { stroke:#ff9a3d; filter: drop-shadow(0 0 6px #ff5a80); }
-.maze.past .left { stroke:#ff5a80; opacity:.35; } .maze.past .dot { stroke:#ff5a80; }
-.drops { position:absolute; left:0; right:0; top:0; height:100%; pointer-events:none; }
-.drop { position:absolute; top:34%; font-size:15px; line-height:1; color:var(--yellow); text-shadow:0 0 6px rgba(255,216,76,.8); animation: coinDrop 1.1s ease-in forwards; }
-@keyframes coinDrop { 0%{ transform:translateY(0) scale(1); opacity:0; } 15%{ opacity:1; } 100%{ transform:translateY(70px) scale(.7); opacity:0; } }
+.spiral { width:46%; aspect-ratio:1; display:block; overflow:visible; margin:2px 0; }
+.spiral .sp-track { fill:none; stroke:var(--yellow); stroke-opacity:.16; stroke-width:4; stroke-linecap:round; }
+.spiral .sp-fill { fill:none; stroke:var(--yellow); stroke-width:4; stroke-linecap:round; filter: drop-shadow(0 0 5px rgba(255,216,76,.7)); transition: stroke-dashoffset .9s linear, opacity .3s; }
+.spiral .sp-head { fill:#fff; stroke:var(--yellow); stroke-width:1.6; filter: drop-shadow(0 0 4px var(--yellow)) drop-shadow(0 0 8px var(--yellow)); transition: cx .9s linear, cy .9s linear, opacity .3s; }
+.spiral.urgent .sp-fill, .spiral.urgent .sp-head { stroke:#ff9a3d; }
+.spiral.empty .sp-fill, .spiral.empty .sp-head { opacity:0; }
 .threshold { min-height:26px; font-size:18px; font-weight:1000; letter-spacing:.05em; color:#ffb347; margin:2px 0 0; }
 .threshold.t10 { color:#ff5a80; animation: hgPulse .8s ease-in-out infinite; display:inline-block; }
 @keyframes hgPulse { 50% { transform:scale(1.06); } }
@@ -436,7 +432,7 @@ input { cursor: text; }
   .journey-card { margin-top: 8px; }
   .status-card { margin-top: 8px; }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .drops { display:none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
@@ -577,14 +573,12 @@ input { cursor: text; }
         <div class="ring-inner">
           <div id="ringLabel" class="ring-label">BONUS POINTS AVAILABLE</div>
           <div id="pointsNow" class="points-big">2,400</div>
-          <svg id="maze" class="maze" viewBox="0 0 100 100" aria-hidden="true">
-            <path id="mazeWall" class="wall" d=""/>
-            <path id="mazeTrack" class="track" d=""/>
-            <path id="mazeLeft" class="left" d=""/>
-            <circle id="mazeDot" class="dot" r="3.6" cx="50" cy="50"/>
+          <svg id="spiral" class="spiral" viewBox="0 0 100 100" aria-hidden="true">
+            <path id="spiralTrack" class="sp-track" d=""/>
+            <path id="spiralFill" class="sp-fill" d=""/>
+            <circle id="spiralHead" class="sp-head" r="3" cx="50" cy="50"/>
           </svg>
           <div id="rewardNow" class="coins-big">40 coins</div>
-          <div id="drops" class="drops" aria-hidden="true"></div>
         </div>
       </div>
       <div id="countdown" class="countdown-sm">05:00</div>
@@ -1089,46 +1083,31 @@ function rewardPoints(targetMs, nowMs = Date.now()) {
   const coins = reward(targetMs, nowMs);
   return Math.max(coins * 60 - 29, Math.min(coins * 60 + 29, Math.round(exact * 60)));
 }
-let lastChalSecs = null, lossUntil = 0, lastDropSec = null;
+let lastChalSecs = null, lossUntil = 0;
 
-// DA-02: spiral maze inside the ring (Archimedean spiral, outer start -> centre)
-let mazeLen = 0;
-function initMaze() {
-  const turns = 2.75, r0 = 44, r1 = 5, steps = 140;
+// DA-03: one continuous spiral that drains outer end -> centre
+let spiralLen = 0;
+function initSpiral() {
+  const turns = 2.75, r0 = 44, r1 = 5, steps = 160;
   let d = '';
   for (let i = 0; i <= steps; i++) {
     const t = i / steps, a = t * turns * 2 * Math.PI - Math.PI / 2, r = r0 + (r1 - r0) * t;
     d += (i ? 'L' : 'M') + (50 + r * Math.cos(a)).toFixed(2) + ' ' + (50 + r * Math.sin(a)).toFixed(2);
   }
-  ['mazeWall', 'mazeTrack', 'mazeLeft'].forEach(id => $(id).setAttribute('d', d));
-  mazeLen = $('mazeTrack').getTotalLength();
+  ['spiralTrack', 'spiralFill'].forEach(id => $(id).setAttribute('d', d));
+  spiralLen = $('spiralTrack').getTotalLength();
+  $('spiralFill').setAttribute('stroke-dasharray', `${spiralLen.toFixed(2)} ${(spiralLen * 2).toFixed(2)}`);
 }
-function updateMaze(progress, before, urgent) {
-  if (!mazeLen) initMaze();
-  const travelled = before ? mazeLen * (1 - progress / 100) : mazeLen;
-  const p = $('mazeTrack').getPointAtLength(travelled);
-  $('mazeDot').setAttribute('cx', p.x.toFixed(2));
-  $('mazeDot').setAttribute('cy', p.y.toFixed(2));
-  // remaining (un-travelled) track glows; travelled part stays dim
-  $('mazeLeft').setAttribute('stroke-dasharray', `0 ${travelled.toFixed(2)} ${mazeLen.toFixed(2)}`);
-  $('maze').classList.toggle('urgent', urgent);
-  $('maze').classList.toggle('past', !before);
-}
-function spawnDrops(secs) {
-  if (secs === lastDropSec) return;
-  lastDropSec = secs;
-  const layer = $('drops');
-  const n = 1 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < n; i++) {
-    if (layer.children.length >= 12) break;
-    const e = document.createElement('span');
-    e.className = 'drop'; e.textContent = Math.random() < .5 ? '★' : '●';
-    e.style.left = (38 + Math.random() * 24) + '%';
-    e.style.animationDelay = (Math.random() * .25).toFixed(2) + 's';
-    e.addEventListener('animationend', () => e.remove());
-    layer.appendChild(e);
-    setTimeout(() => e.remove(), 1700);
-  }
+function updateSpiral(progress, before, urgent) {
+  if (!spiralLen) initSpiral();
+  const frac = before ? Math.max(0, Math.min(1, progress / 100)) : 0;
+  const gone = spiralLen * (1 - frac);           // length already drained from the outer end
+  $('spiralFill').setAttribute('stroke-dashoffset', (-gone).toFixed(2));
+  const p = $('spiralTrack').getPointAtLength(Math.min(gone, spiralLen));
+  $('spiralHead').setAttribute('cx', p.x.toFixed(2));
+  $('spiralHead').setAttribute('cy', p.y.toFixed(2));
+  $('spiral').classList.toggle('urgent', urgent);
+  $('spiral').classList.toggle('empty', frac <= 0.002);
 }
 
 function updateChallenge() {
@@ -1165,8 +1144,7 @@ function updateChallenge() {
 
   $('ring').style.setProperty('--progress', `${progress}%`);
   $('ring').classList.toggle('past', !before);
-  updateMaze(progress, before, before && secs <= 10);
-  if (before && !reduced) spawnDrops(secs);
+  updateSpiral(progress, before, before && secs <= 10);
 
   const th = $('threshold');
   th.classList.toggle('t10', before && secs <= 10 && !reduced);
