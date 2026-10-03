@@ -324,6 +324,13 @@ input { cursor: text; }
 .bonus-block[hidden] { display:none; }
 .bonus-lbl { color: var(--yellow); }
 .bonus-block .points-big { color: var(--yellow); }
+/* DA-06: rolling digits (web equivalent of numericText) */
+.roll { display:inline-flex; vertical-align:bottom; font-variant-numeric:tabular-nums; --u:1.2em; }
+.roll .rd { display:inline-block; width:1ch; height:var(--u); line-height:var(--u); overflow:hidden; position:relative; }
+.roll .rs { display:block; transition:transform .35s ease-out; }
+.roll .rs.nt { transition:none; }
+.roll .rs > i { display:block; font-style:normal; height:var(--u); line-height:var(--u); text-align:center; }
+.roll .rf { display:inline-block; height:var(--u); line-height:var(--u); white-space:pre; }
 .points-ratio { font-size:11px; font-weight:800; color:var(--muted); line-height:1.1; margin-top:2px; }
 .convert-line { font-size:16px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums; margin:0 0 12px; min-height:22px; }
 .countdown-sm { font-size:clamp(40px,12vw,52px); font-weight:1000; letter-spacing:-.04em; color:#fff; font-variant-numeric:tabular-nums; line-height:1; text-shadow:0 4px 0 #4b002f; margin-top:2px; }
@@ -1120,6 +1127,50 @@ function rewardPoints(targetMs, nowMs = Date.now()) {
   const mid = coins * POINTS_PER_COIN;
   return Math.max(mid - half, Math.min(mid + half, Math.round(exact * POINTS_PER_COIN)));
 }
+// DA-06: rolling-digit number (per-digit vertical 0-9 strips; only changed digits move)
+function rollNumber(el, value, opts) {
+  opts = opts || {};
+  const str = (opts.prefix || '') + Number(value).toLocaleString('en-US') + (opts.suffix || '');
+  const r = el._roll;
+  if (r && r.str === str) return;
+  const label = str;
+  el.classList.add('roll');
+  el.setAttribute('aria-label', label);
+  el.setAttribute('role', 'text');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (r && r.str.length === str.length && [...str].every((c, i) => (c >= '0' && c <= '9') === (r.str[i] >= '0' && r.str[i] <= '9'))) {
+    // same structure: update only digits that changed
+    [...str].forEach((c, i) => {
+      if (c === r.str[i]) return;
+      if (c >= '0' && c <= '9') {
+        const strip = r.nodes[i];
+        strip.classList.toggle('nt', reduced);
+        strip.style.transform = `translateY(calc(var(--u) * -${c}))`;
+      } else r.nodes[i].textContent = c;
+    });
+    r.str = str;
+    return;
+  }
+  // first render or digit count / structure changed: rebuild with no animation
+  el.textContent = '';
+  const nodes = [];
+  for (const c of str) {
+    if (c >= '0' && c <= '9') {
+      const win = document.createElement('span'); win.className = 'rd'; win.setAttribute('aria-hidden', 'true');
+      const strip = document.createElement('span'); strip.className = 'rs nt';
+      strip.innerHTML = '0123456789'.split('').map(d => `<i>${d}</i>`).join('');
+      strip.style.transform = `translateY(calc(var(--u) * -${c}))`;
+      win.appendChild(strip); el.appendChild(win); nodes.push(strip);
+      void strip.offsetWidth;                       // commit initial position, then enable transition
+      if (!reduced) strip.classList.remove('nt');
+    } else {
+      const f = document.createElement('span'); f.className = 'rf'; f.setAttribute('aria-hidden', 'true'); f.textContent = c;
+      el.appendChild(f); nodes.push(f);
+    }
+  }
+  el._roll = { str, nodes };
+}
+
 let lastChalSecs = null, lossUntil = 0;
 
 // DA-03: one continuous spiral that drains outer end -> centre
@@ -1177,10 +1228,10 @@ function updateChallenge() {
   $('ringLabel').textContent  = before ? '✓ ON-TIME POINTS' : 'ON-TIME POINTS (dropping)';
   $('countdown').textContent  = (before ? '' : '−') + displayTime;
   $('rewardNow').textContent  = `${pts} coins`;
-  $('pointsNow').textContent  = sp.base.toLocaleString('en-US');
+  rollNumber($('pointsNow'), sp.base);
   $('pointsNow').classList.toggle('dropping', !before);
   $('bonusBlock').hidden      = !before;
-  $('bonusNow').textContent   = '+' + sp.bonus.toLocaleString('en-US');
+  rollNumber($('bonusNow'), sp.bonus, { prefix:'+' });
   $('pointsRatio').textContent = `${POINTS_PER_COIN.toLocaleString('en-US')} points = 1 coin`;
   $('phasePill').textContent  = before ? '⚡ BONUS ACTIVE' : coinBonusLabel(targetMs, nowMs);
 
@@ -1249,15 +1300,22 @@ function playConvert(points, coins, basePts, bonusPts) {
   const el = $('convertLine');
   const nf = n => n.toLocaleString('en-US');
   const prefix = bonusPts > 0 ? `${nf(basePts)} on time + ${nf(bonusPts)} early bonus = ` : '';
-  const fmt = (p, c) => `${prefix}${nf(p)} points → +${c} coins`;
   clearInterval(convertTimer);
-  el.dataset.final = fmt(points, coins);
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = el.dataset.final; return; }
+  el.dataset.final = `${prefix}${nf(points)} points → +${coins} coins`;
+  el.setAttribute('aria-label', el.dataset.final);
+  el.setAttribute('role', 'status');
+  // structure: [prefix][points roller] points → + [coins roller] coins (rollers keep their own state)
+  el.textContent = '';
+  const mk = (tag, txt) => { const e = document.createElement(tag); if (txt) e.textContent = txt; e.setAttribute('aria-hidden', 'true'); return e; };
+  const pEl = mk('span'), cEl = mk('span');
+  el.append(mk('span', prefix), pEl, mk('span', ' points → +'), cEl, mk('span', ' coins'));
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) { rollNumber(pEl, points); rollNumber(cEl, coins); return; }
   const t0 = performance.now(), dur = 1100;
   const step = () => {
     const k = Math.min(1, (performance.now() - t0) / dur);
-    el.textContent = k >= 1 ? el.dataset.final : fmt(Math.round(points * (1 - k)), Math.round(coins * k));
-    if (k >= 1) clearInterval(convertTimer);
+    if (k >= 1) { rollNumber(pEl, points); rollNumber(cEl, coins); clearInterval(convertTimer); return; }
+    rollNumber(pEl, Math.round(points * (1 - k))); rollNumber(cEl, Math.round(coins * k));
   };
   step(); convertTimer = setInterval(step, 40);
 }
