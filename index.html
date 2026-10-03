@@ -7,14 +7,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Departure">
-<meta name="description" content="The gamified, forgiving departure timer built for the ADHD brain. Points diminish as time passes to get you out the door early.">
+<meta name="description" content="The gamified, forgiving departure timer built for the ADHD brain. Leave on time for 40 coins, earlier for more, and even late still earns coins.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Departure Alarm — Leave on time without the panic">
-<meta property="og:description" content="The gamified, forgiving departure timer built for the ADHD brain. Points diminish as time passes to get you out the door early.">
+<meta property="og:description" content="The gamified, forgiving departure timer built for the ADHD brain. Leave on time for 40 coins, earlier for more, and even late still earns coins.">
 <meta property="og:url" content="https://drlizlondon.github.io/departure-alarm/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Departure Alarm — Leave on time without the panic">
-<meta name="twitter:description" content="The gamified, forgiving departure timer built for the ADHD brain. Points diminish as time passes to get you out the door early.">
+<meta name="twitter:description" content="The gamified, forgiving departure timer built for the ADHD brain. Leave on time for 40 coins, earlier for more, and even late still earns coins.">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
@@ -705,11 +705,14 @@ let state = load();
 const $ = id => document.getElementById(id);
 
 // ═══════════════════════════════════════════════════════════════════
-//  DYNAMIC DIMINISHING REWARDS
+//  DYNAMIC REWARDS
 //  Calculates coins in real-time based on seconds early/late.
-//  Earlier departure = Higher bonus points.
-//  As time passes, points visibly diminish every second!
+//  Earlier departure = higher bonus points (40 on time, up to 100).
+//  Late is stepped (DA-09): up to 5 min late = 20, after that 10.
 // ═══════════════════════════════════════════════════════════════════
+const LATE_TIER_1_COINS = 20;   // 1 s .. 5 min late
+const LATE_TIER_1_SEC   = 300;
+const LATE_FLOOR_COINS  = 10;   // more than 5 min late: just going
 function reward(targetMs, nowMs = Date.now()) {
   const secEarly = Math.round((targetMs - nowMs) / 1000);
   
@@ -727,15 +730,8 @@ function reward(targetMs, nowMs = Date.now()) {
     return Math.round(40 + (secEarly / 300) * 40);
   }
   
-  // Past target (late): secEarly < 0
-  const lateSec = -secEarly;
-  const lateMin = lateSec / 60;
-  if (lateMin <= 15) {
-    // 0 to 15 min late: diminishes from 40 down to 15 coins
-    return Math.max(15, Math.round(40 - (lateMin / 15) * 25));
-  }
-  // 15 to 30+ min late: diminishes gently from 15 down to 10 coins (forgiving floor)
-  return Math.max(10, Math.round(15 - ((lateMin - 15) / 15) * 5));
+  // Past target (late), stepped: 20 up to 5 min late, then 10
+  return (-secEarly <= LATE_TIER_1_SEC) ? LATE_TIER_1_COINS : LATE_FLOOR_COINS;
 }
 
 function tierLabel(targetMs, nowMs = Date.now()) {
@@ -744,8 +740,7 @@ function tierLabel(targetMs, nowMs = Date.now()) {
   if (secEarly >= 300) return 'EARLY BIRD! 🚀';
   if (secEarly >= 60)  return 'AHEAD OF TIME! ⚡';
   if (secEarly >= -30) return 'RIGHT ON TIME! ⭐';
-  if (secEarly >= -300) return 'STILL MOVING! 🏃';
-  if (secEarly >= -900) return 'STILL COUNTS! 👏';
+  if (secEarly >= -LATE_TIER_1_SEC) return 'STILL MOVING! 🏃';
   return 'YOU GOT OUT! 🙌';
 }
 
@@ -755,7 +750,7 @@ function tierMsg(targetMs, nowMs = Date.now(), pts = 40) {
     const mins = Math.floor(secEarly / 60);
     const secs = secEarly % 60;
     const timeStr = secs > 0 ? `${mins}m ${secs}s` : `${mins} min`;
-    return `Incredible! You left ${timeStr} early. You locked in +${pts} coins before they diminished!`;
+    return `Incredible! You left ${timeStr} early. You locked in +${pts} coins!`;
   }
   if (secEarly >= -30) {
     return `Right on time! You committed to your departure time and hit it. Solid consistency!`;
@@ -771,9 +766,8 @@ function coinBonusLabel(targetMs, nowMs = Date.now()) {
   if (secEarly >= 600) return `🌟 MAX BONUS · ${pts} COINS`;
   if (secEarly >= 300) return `🚀 EARLY BIRD · ${pts} COINS`;
   if (secEarly >= 0)   return `⚡ BONUS ACTIVE · ${pts} COINS`;
-  if (secEarly >= -300) return `🏃 GRACE WINDOW · ${pts} COINS`;
-  if (secEarly >= -900) return `👏 STILL EARNING · ${pts} COINS`;
-  return `💪 FORGIVING FLOOR · ${pts} COINS`;
+  if (secEarly >= -LATE_TIER_1_SEC) return `🏃 GRACE WINDOW · ${pts} COINS`;
+  return `💪 JUST GOING · ${pts} COINS`;
 }
 
 // Early-out button label: computed dynamically so it's always accurate
@@ -1101,11 +1095,7 @@ function rewardPoints(targetMs, nowMs = Date.now()) {
   if (secEarly >= 600) exact = 100;
   else if (secEarly >= 300) exact = 80 + ((secEarly - 300) / 300) * 20;
   else if (secEarly >= 0) exact = 40 + (secEarly / 300) * 40;
-  else {
-    const lateMin = -secEarly / 60;
-    if (lateMin <= 15) exact = Math.max(15, 40 - (lateMin / 15) * 25);
-    else exact = Math.max(10, 15 - ((lateMin - 15) / 15) * 5);
-  }
+  else exact = reward(targetMs, nowMs);
   const coins = reward(targetMs, nowMs);
   const half = Math.ceil(POINTS_PER_COIN / 2) - 1;
   const mid = coins * POINTS_PER_COIN;
@@ -1183,10 +1173,11 @@ function updateChallenge() {
   const lossBeat = nowMs < lossUntil;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  $('ringLabel').textContent  = before ? '✓ ON-TIME POINTS' : 'ON-TIME POINTS (dropping)';
+  $('ringLabel').textContent  = before ? '✓ ON-TIME POINTS' : 'LATE POINTS';
   $('countdown').textContent  = (before ? '' : '−') + displayTime;
   rollNumber($('sumCoins'), pts);
   $('sumSuffix').textContent  = before ? ' coins if you leave now' : ' coins if you go now';
+  const tier1 = !before && (-secEarly) <= LATE_TIER_1_SEC;
   rollNumber($('pointsNow'), sp.base);
   $('pointsNow').classList.toggle('dropping', !before);
   $('bonusBlock').hidden      = !before;
@@ -1205,7 +1196,9 @@ function updateChallenge() {
   else if (secs <= 30)     th.textContent = '⚠️ 30 SECONDS';
   else                     th.textContent = '';
 
-  $('leaveBy').textContent = before ? `Leave by ${format24(target)}` : '';
+  $('leaveBy').textContent = before ? `Leave by ${format24(target)}`
+    : tier1 ? `Drops to ${(LATE_FLOOR_COINS * POINTS_PER_COIN).toLocaleString('en-US')} at ${format24(new Date(targetMs + LATE_TIER_1_SEC * 1000))}`
+    : `= ${LATE_FLOOR_COINS} coins for going`;
 
   // Before-I-leave reminder on challenge screen
   if (state.alarm.before) {
