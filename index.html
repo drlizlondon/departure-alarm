@@ -328,6 +328,7 @@ input { cursor: text; }
 .roll .rs > i { display:block; font-style:normal; height:var(--u); line-height:var(--u); text-align:center; }
 .roll .rf { display:inline-block; height:var(--u); line-height:var(--u); white-space:pre; }
 .convert-line { font-size:16px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums; margin:0 0 12px; min-height:22px; }
+.wake-note { font-size:11px; line-height:1.2; color:var(--muted); text-align:center; margin-top:2px; }
 .countdown-sm { font-size:clamp(40px,12vw,52px); font-weight:1000; letter-spacing:-.04em; color:#fff; font-variant-numeric:tabular-nums; line-height:1; text-shadow:0 4px 0 #4b002f; margin-top:2px; }
 #imOutBtn.out-small { font-size:17px; padding:12px 16px; min-height:46px; border-radius:18px; box-shadow:0 6px 0 #087317, 0 12px 20px rgba(0,0,0,.35), inset 0 3px 0 rgba(255,255,255,.5); }
 
@@ -549,7 +550,7 @@ body:has(#alarmBar:not([hidden])) .app { padding-bottom: max(82px, calc(22px + e
   justify-content: center; --cdh: clamp(32px, 6.4vh, 52px);
 }
 .ring {
-  --s: max(188px, min(72cqw, 290px, calc(100cqh - var(--cdh) - 12px)));
+  --s: max(188px, min(72cqw, 290px, calc(100cqh - var(--cdh) - 28px)));
   width: var(--s); height: var(--s); min-height: 0; flex: none;
   margin: 4px auto 2px; padding: calc(var(--s) * .07);
   container-type: inline-size;
@@ -819,6 +820,7 @@ body:has(#alarmBar:not([hidden])) .app { padding-bottom: max(82px, calc(22px + e
         </div>
       </div>
       <div id="countdown" class="countdown-sm">05:00</div>
+      <div id="wakeNote" class="wake-note" hidden>Keep this screen open: we'll keep it awake.</div>
     </div>
     <!-- Before-I-leave reminder on challenge screen -->
     <div id="chalBefore" class="challenge-before" hidden>
@@ -1153,8 +1155,31 @@ function checkAbandonedAlarm() {
 // ═══════════════════════════════════════════════════════════════════
 //  RENDER — home screen
 // ═══════════════════════════════════════════════════════════════════
+// DA-17: keep the screen awake while a departure is live (feature-detected, never throws).
+let wakeLock = null;
+function wakeSupported() { return !!(navigator.wakeLock && typeof navigator.wakeLock.request === 'function'); }
+async function acquireWakeLock() {
+  if (!wakeSupported() || wakeLock || document.visibilityState !== 'visible') return;
+  try {
+    const l = await navigator.wakeLock.request('screen');
+    if (!state.alarm) { try { await l.release(); } catch (e) {} return; }
+    wakeLock = l;
+    if (l.addEventListener) l.addEventListener('release', () => { if (wakeLock === l) wakeLock = null; });
+  } catch (e) { wakeLock = null; }
+}
+function releaseWakeLock() {
+  const l = wakeLock; wakeLock = null;
+  if (l) { try { Promise.resolve(l.release()).catch(() => {}); } catch (e) {} }
+}
+function syncWakeLock() { if (state.alarm) acquireWakeLock(); else releaseWakeLock(); }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.alarm) { releaseWakeLock(); acquireWakeLock(); } // UA drops the lock when hidden: always re-request
+});
+
 function render() {
   const has = !!state.alarm;
+  if ($('wakeNote')) $('wakeNote').hidden = !has || !wakeSupported();
+  syncWakeLock();
   $('setupView').hidden = has;
   $('setView').hidden   = !has;
   $('coinTotal').textContent  = state.coins.toLocaleString('en-GB');
