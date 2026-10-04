@@ -458,8 +458,9 @@ input { cursor: text; }
 #home .round-btn { width: 44px; height: 44px; }
 #home .home-main { justify-content: space-evenly; gap: 0; padding: 0; }
 #home .a2hs-tip[hidden] { display: none; }
-#home .a2hs-tip { font-size: 12px; line-height: 1.2; margin: 6px 0 clamp(2px, .6vh, 6px); gap: 4px; justify-content: center; }
-#home .a2hs-tip button { font-size: 16px; padding: 0 10px; min-height: 44px; margin: -14px 0; line-height: 1; }
+/* DA-15b: tip lives in the top row's spare width, costs no height */
+#home .a2hs-tip { flex: 1 1 0; min-width: 0; font-size: 11px; line-height: 1.15; margin: 0 4px; gap: 0; justify-content: center; text-align: center; }
+#home .a2hs-tip button { font-size: 16px; padding: 0; min-width: 28px; min-height: 44px; margin: 0 -4px 0 0; line-height: 1; flex: none; }
 #home .quick-pill { min-height: 44px; }
 #home .question { margin-bottom: 2px; }
 #home .subcopy { margin-bottom: clamp(6px, 1.4vh, 12px); }
@@ -505,6 +506,16 @@ input { cursor: text; }
   #home .journey-card { box-shadow: 0 4px 0 #280038, inset 0 2px 0 rgba(255,255,255,.13); }
   #home .track { margin: 5px 0 3px; }
 }
+@media (max-width: 340px) {
+  #home .a2hs-tip { font-size: 10px; line-height: 1.1; }
+  #home .question { font-size: 19px; }
+  #home .subcopy { font-size: 11.5px; letter-spacing: -.01em; margin-bottom: 2px; }
+  #home .quick-label { font-size: 11px; }
+  #home .picker-header { font-size: 10px; letter-spacing: .02em; }
+  #home .helper { font-size: 10.5px; line-height: 1.2; margin-bottom: 3px; }
+  #home .btn-3d { padding-top: 7px; padding-bottom: 7px; }
+  #home .item-chip { padding: 2px 8px; font-size: 11.5px; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -528,12 +539,11 @@ input { cursor: text; }
     <header class="topbar">
       <button id="soundBtn" class="round-btn" aria-label="Test alarm sounds" title="Test alarm sounds">♪</button>
       <button id="statsBtn" class="round-btn" aria-label="View progress">▥</button>
+      <div id="a2hsTip" class="a2hs-tip" hidden><span>Open it in one tap: Share, then Add to Home Screen.</span><button id="a2hsClose" type="button" aria-label="Dismiss tip">×</button></div>
       <div class="coin-pill"><span class="coin">★</span><span id="coinTotal">0</span></div>
     </header>
 
     <main class="home-main">
-      <div id="a2hsTip" class="a2hs-tip" hidden><span>Open it in one tap: Share, then Add to Home Screen.</span><button id="a2hsClose" type="button" aria-label="Dismiss tip">×</button></div>
-
       <!-- SETUP VIEW: shown when no alarm is set -->
       <div id="setupView">
         <h1 class="question">When do you need to leave?</h1>
