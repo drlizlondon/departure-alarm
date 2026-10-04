@@ -269,7 +269,6 @@ input { cursor: text; }
 /* ── Challenge screen ─────────────────────────────────────────────── */
 .challenge-screen { justify-content: flex-start; text-align: center; gap: 0; }
 .go-title { font-size: clamp(46px,13vw,64px); line-height: .9; margin: 6px 0 4px; font-weight: 1000; text-shadow: 0 5px 0 #8d064e, 0 0 18px rgba(255,82,173,.6); }
-.backup-line { text-align: center; color: var(--muted); font-size: 12px; font-weight: 750; margin: 4px 0 0; }
 .a2hs-tip { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 750; margin: 10px 0; }
 .a2hs-tip button { background: none; border: 0; color: inherit; font-size: 18px; padding: 4px 8px; cursor: pointer; }
 .leave-by { font-size: 17px; font-weight: 850; margin: 0 0 4px; }
@@ -597,7 +596,6 @@ input { cursor: text; }
         </div>
       </div>
       <div id="countdown" class="countdown-sm">05:00</div>
-      <div id="backupLine" class="backup-line" hidden></div>
     </div>
     <!-- Before-I-leave reminder on challenge screen -->
     <div id="chalBefore" class="challenge-before" hidden>
@@ -1028,8 +1026,7 @@ async function commitAlarm(target) {
   render();
 
   const dayLabel = formatDay(target);
-  if (IS_IOS) toast(`On iPhone, alerts only sound while this screen is open. Set a backup alarm in your Clock app for ${format24(target)}.`, 5000);
-  else toast(`✓ Departure set for ${format24(target)}${dayLabel ? ' (' + dayLabel + ')' : ''}`);
+  toast(`✓ Departure set for ${format24(target)}${dayLabel ? ' (' + dayLabel + ')' : ''}`);
 
   // Request notification permission contextually (non-blocking)
   ensureNotifications(target);
@@ -1213,8 +1210,6 @@ function updateChallenge() {
   else if (secs <= 30)     th.textContent = '⚠️ 30 SECONDS';
   else                     th.textContent = '';
 
-  $('backupLine').hidden = !IS_IOS;
-  if (IS_IOS) $('backupLine').textContent = `Backup: set a Clock alarm for ${format24(target)}`;
   $('leaveBy').textContent = before ? `Leave by ${format24(target)}`
     : tier1 ? `Drops to ${(LATE_FLOOR_COINS * POINTS_PER_COIN).toLocaleString('en-US')} at ${format24(new Date(targetMs + LATE_TIER_1_SEC * 1000))}`
     : `= ${LATE_FLOOR_COINS} coins for going`;
@@ -1543,11 +1538,11 @@ function launchMini() {
 // ═══════════════════════════════════════════════════════════════════
 //  TOAST
 // ═══════════════════════════════════════════════════════════════════
-function toast(msg, ms = 2400) {
+function toast(msg) {
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), ms);
+  setTimeout(() => t.remove(), 2400);
 }
 
 // ═══════════════════════════════════════════════════════════════════
