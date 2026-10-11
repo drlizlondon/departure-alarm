@@ -2,15 +2,7 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-0Q9K6FMX89"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-0Q9K6FMX89');
-</script>
+<script src="da-consent.js" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="google-site-verification" content="gLzZGRgkNx9hlpm-raiKStSxMtkIuWhh4RQ1_HU-78s">
 <meta name="theme-color" content="#5a0b77">
@@ -531,6 +523,7 @@ input { cursor: text; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 /* ── DA-16: no page scrolling on any screen, any iPhone ───────────── */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.privacy-choices { display: block; margin: 28px auto 8px; padding: 12px; width: fit-content; color: var(--muted); font-size: 13px; text-decoration: underline; }
 html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .app, .app:has(#home.active) {
   height: 100vh; height: 100dvh; min-height: 0;
@@ -896,6 +889,7 @@ body:has(#alarmBar:not([hidden])) .app { padding-bottom: max(82px, calc(22px + e
       <span class="late">■ Late</span>
     </div>
     <div id="histEmpty" class="history-empty" hidden>Complete your first departure to see your history here.</div>
+    <a href="#privacy-choices" class="privacy-choices" data-da-privacy-choices hidden>Privacy choices</a>
   </section>
 
 </div><!-- .app -->
