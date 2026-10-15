@@ -65,8 +65,10 @@ input { cursor: text; }
 .round-btn {
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center; font-weight: 900;
+  text-decoration: none;
 }
 .round-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #36004f; }
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
 .coin-pill {
   display: flex; align-items: center; gap: 7px;
   padding: 8px 13px; border-radius: 999px; font-weight: 1000;
@@ -511,6 +513,8 @@ input { cursor: text; }
   #home .track { margin: 5px 0 3px; }
 }
 @media (max-width: 340px) {
+  #home .topbar-actions { gap: 4px; }
+  #home .topbar-actions .round-btn { width: 38px; height: 38px; font-size: 14px; }
   #home .a2hs-tip { font-size: 10px; line-height: 1.1; }
   #home .question { font-size: 19px; }
   #home .subcopy { font-size: 11.5px; letter-spacing: -.01em; margin-bottom: 2px; }
@@ -696,8 +700,11 @@ body:has(#alarmBar:not([hidden])) .app { padding-bottom: max(82px, calc(22px + e
   <!-- ─── HOME ─────────────────────────────────────────────────── -->
   <section id="home" class="screen active">
     <header class="topbar">
-      <button id="soundBtn" class="round-btn" aria-label="Test alarm sounds" title="Test alarm sounds">♪</button>
-      <button id="statsBtn" class="round-btn" aria-label="View progress">▥</button>
+      <div class="topbar-actions">
+        <button id="soundBtn" class="round-btn" aria-label="Test alarm sounds" title="Test alarm sounds">♪</button>
+        <button id="statsBtn" class="round-btn" aria-label="View progress" title="View progress">▥</button>
+        <a id="aboutLink" href="landing.html" class="round-btn" aria-label="Why it works: landing page guide" title="Why it works">?</a>
+      </div>
       <div id="a2hsTip" class="a2hs-tip" hidden><span>Open it in one tap: Share, then Add to Home Screen.</span><button id="a2hsClose" type="button" aria-label="Dismiss tip">×</button></div>
       <div class="coin-pill"><span class="coin">★</span><span id="coinTotal">0</span></div>
     </header>
@@ -889,7 +896,10 @@ body:has(#alarmBar:not([hidden])) .app { padding-bottom: max(82px, calc(22px + e
       <span class="late">■ Late</span>
     </div>
     <div id="histEmpty" class="history-empty" hidden>Complete your first departure to see your history here.</div>
-    <a href="#privacy-choices" class="privacy-choices" data-da-privacy-choices hidden>Privacy choices</a>
+    <div style="display:flex;flex-direction:column;align-items:center;margin-top:14px;gap:6px;">
+      <a href="landing.html" class="privacy-choices" style="margin:0;">Why Departure Alarm works (Guide)</a>
+      <a href="#privacy-choices" class="privacy-choices" style="margin:0;" data-da-privacy-choices hidden>Privacy choices</a>
+    </div>
   </section>
 
 </div><!-- .app -->
