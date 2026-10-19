@@ -1,0 +1,168 @@
+{
+  "releaseId": "rel-departure-alarm-1.1.0-2026-10-19",
+  "version": "v1.1.0",
+  "releaseDate": "2026-10-19T10:59:50.758Z",
+  "approvalStatus": "PENDING_HUMAN_APPROVAL",
+  "repository": {
+    "name": "departure-alarm",
+    "remote": "https://github.com/drlizlondon/departure-alarm.git",
+    "branch": "main",
+    "headSha": "f8414e714ba01a7899c7fad04267490bdd983959",
+    "shortSha": "f8414e7"
+  },
+  "commitRange": "HEAD~15..HEAD",
+  "totalCommits": 15,
+  "categorizedSummary": {
+    "features": 3,
+    "fixes": 2,
+    "performance": 0,
+    "invariants": 1,
+    "refactoring": 0,
+    "maintenance": 9
+  },
+  "diffStats": {
+    "filesChanged": 7,
+    "insertions": 6264,
+    "deletions": 1598
+  },
+  "verificationGates": {
+    "systemInvariants": {
+      "status": "VERIFIED",
+      "enforcedRules": [
+        "rule-syntax-em-dash",
+        "rule-format-prettier",
+        "rule-file-boundary",
+        "rule-brand-integrity"
+      ]
+    },
+    "visualSensory": {
+      "status": "VERIFIED",
+      "viewports": [
+        "mobile (375px)",
+        "tablet (768px)",
+        "desktop (1440px)"
+      ]
+    }
+  },
+  "commits": [
+    {
+      "shortHash": "f8414e7",
+      "type": "fix",
+      "scope": "landing",
+      "subject": "resolve mobile layout blowout and touch target boundaries",
+      "author": "drlizlondon",
+      "date": "2026-10-19"
+    },
+    {
+      "shortHash": "ecc6ad2",
+      "type": "fix",
+      "subject": "enforce brand integrity and universal code legibility",
+      "author": "drlizlondon",
+      "date": "2026-10-19"
+    },
+    {
+      "shortHash": "0c23a10",
+      "type": "chore",
+      "scope": "style",
+      "subject": "establish universal studio prettier configuration",
+      "author": "drlizlondon",
+      "date": "2026-10-19"
+    },
+    {
+      "shortHash": "dd2b0c2",
+      "type": "feat",
+      "scope": "landing",
+      "subject": "add adhd-friendly landing page guide and link from app topbar",
+      "author": "drlizlondon",
+      "date": "2026-10-15"
+    },
+    {
+      "shortHash": "321926a",
+      "type": "other",
+      "scope": null,
+      "subject": "Consent buttons: 14px radius (gate check 13 read the 999px pill as a squashed circle)",
+      "author": "drlizlondon",
+      "date": "2026-10-11"
+    },
+    {
+      "shortHash": "a3fd300",
+      "type": "other",
+      "scope": null,
+      "subject": "Consent-gate Google Analytics (UK PECR): zero GA requests before a choice",
+      "author": "drlizlondon",
+      "date": "2026-10-11"
+    },
+    {
+      "shortHash": "05170b0",
+      "type": "feat",
+      "scope": "analytics",
+      "subject": "add Google Analytics 4 tracking (G-0Q9K6FMX89)",
+      "author": "drlizlondon",
+      "date": "2026-10-07"
+    },
+    {
+      "shortHash": "b7c435e",
+      "type": "feat",
+      "scope": "seo",
+      "subject": "add google-site-verification meta tag",
+      "author": "drlizlondon",
+      "date": "2026-10-07"
+    },
+    {
+      "shortHash": "fb9f5cf",
+      "type": "other",
+      "scope": null,
+      "subject": "Excellence floor: canonical link, 44px dismiss tap target",
+      "author": "drlizlondon",
+      "date": "2026-10-05"
+    },
+    {
+      "shortHash": "10078ff",
+      "type": "other",
+      "scope": null,
+      "subject": "DA-17: keep the screen awake while a departure is live",
+      "author": "drlizlondon",
+      "date": "2026-10-05"
+    },
+    {
+      "shortHash": "05df0fb",
+      "type": "other",
+      "scope": null,
+      "subject": "DA-16: no page scroll on any screen; stop-departure sheet; circular ring",
+      "author": "drlizlondon",
+      "date": "2026-10-04"
+    },
+    {
+      "shortHash": "76617e1",
+      "type": "other",
+      "scope": null,
+      "subject": "DA-15b: home fits in a Safari tab, tip moves into the top row",
+      "author": "drlizlondon",
+      "date": "2026-10-04"
+    },
+    {
+      "shortHash": "a524a4e",
+      "type": "other",
+      "scope": null,
+      "subject": "DA-15: home screen fits one phone screen, Walking shoes visible",
+      "author": "drlizlondon",
+      "date": "2026-10-04"
+    },
+    {
+      "shortHash": "1e31ee1",
+      "type": "other",
+      "scope": null,
+      "subject": "DA-12b: never point users to another alarm app",
+      "author": "drlizlondon",
+      "date": "2026-10-04"
+    },
+    {
+      "shortHash": "0917555",
+      "type": "other",
+      "scope": null,
+      "subject": "DA-12: bonus moves from the moment the alarm is set; honest iOS alerts",
+      "author": "drlizlondon",
+      "date": "2026-10-04"
+    }
+  ]
+}
