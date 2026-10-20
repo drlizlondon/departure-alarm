@@ -1,0 +1,64 @@
+{
+  "name": "departure-alarm-invariants",
+  "description": "Invariants for this repo, checked by wb4g-invariants (github.com/We-Build-For-Good/skill-system-invariant-engine). Run: wb4g-invariants --dir . (add --fix to apply the fixes).",
+  "rules": [
+    {
+      "id": "rule-syntax-em-dash",
+      "type": "forbidden-text",
+      "description": "No em dashes: use colons, commas, or parentheses.",
+      "message": "Em dash found. Use a colon, comma, or parentheses instead.",
+      "pattern": "\u2014",
+      "fixes": [
+        {
+          "pattern": " \u2014 ",
+          "replace": ": "
+        },
+        {
+          "pattern": "\u2014",
+          "replace": ", "
+        }
+      ],
+      "extensions": [
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".css",
+        ".scss",
+        ".html"
+      ]
+    },
+    {
+      "id": "rule-brand-canonical-domain",
+      "type": "forbidden-text",
+      "description": "Public links use the We Build for Good address, not the old GitHub Pages address.",
+      "message": "Old address. Use https://webuildforgood.com/departure-alarm/ instead.",
+      "checkCommitMessages": false,
+      "pattern": "drlizlondon\\.github\\.io/departure-alarm",
+      "fixes": [
+        {
+          "pattern": "https?://drlizlondon\\.github\\.io/departure-alarm/?",
+          "replace": "https://webuildforgood.com/departure-alarm/"
+        },
+        {
+          "pattern": "drlizlondon\\.github\\.io/departure-alarm",
+          "replace": "webuildforgood.com/departure-alarm/"
+        }
+      ],
+      "extensions": [
+        ".html",
+        ".xml",
+        ".md",
+        ".json"
+      ]
+    },
+    {
+      "id": "rule-file-boundary",
+      "type": "file-boundary",
+      "severity": "warning",
+      "threshold": 400
+    }
+  ]
+}
